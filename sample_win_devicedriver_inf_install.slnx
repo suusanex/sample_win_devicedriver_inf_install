@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Spec-Kit/">
+    <File Path="specs/001-inf-microsoft-windows/contracts/IDriverInstallationService.cs" />
+    <File Path="specs/001-inf-microsoft-windows/contracts/IInstallationLogger.cs" />
+    <File Path="specs/001-inf-microsoft-windows/data-model.md" />
+    <File Path="specs/001-inf-microsoft-windows/plan.md" />
+    <File Path="specs/001-inf-microsoft-windows/quickstart.md" />
+    <File Path="specs/001-inf-microsoft-windows/research.md" />
+    <File Path="specs/001-inf-microsoft-windows/spec.md" />
+  </Folder>
+  <Project Path="sample_win_devicedriver_inf_install/sample_win_devicedriver_inf_install.csproj" />
+</Solution>
