@@ -1,0 +1,2 @@
+# sample_win_devicedriver_inf_install
+Windows向けデバイスドライバのinfを使用したインストーラのサンプル。インストール処理だけを簡易にテストする用途でも使うため、コンソールアプリとする。
