@@ -1,0 +1,202 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- 基本的なファイルシステムエラー -->
+  <data name="2" xml:space="preserve">
+    <value>指定されたファイルが見つかりません。</value>
+  </data>
+  <data name="3" xml:space="preserve">
+    <value>指定されたパスが見つかりません。</value>
+  </data>
+  <data name="5" xml:space="preserve">
+    <value>アクセスが拒否されました。管理者権限で実行してください。</value>
+  </data>
+  <data name="32" xml:space="preserve">
+    <value>ファイルが他のプロセスで使用されています。</value>
+  </data>
+  <data name="87" xml:space="preserve">
+    <value>パラメータが正しくありません。</value>
+  </data>
+
+  <!-- Setup API 固有のエラー -->
+  <data name="3758096640" xml:space="preserve">
+    <value>INF ファイルが見つからないか、形式が正しくありません。</value>
+  </data>
+  <data name="3758096641" xml:space="preserve">
+    <value>INF ファイルで指定されたセクションが見つかりません。</value>
+  </data>
+  <data name="3758096642" xml:space="preserve">
+    <value>INF ファイルで指定された行が見つかりません。</value>
+  </data>
+  <data name="3758096643" xml:space="preserve">
+    <value>INF ファイルで指定されたキーが見つかりません。</value>
+  </data>
+  <data name="3758096644" xml:space="preserve">
+    <value>レジストリへの書き込みに失敗しました。</value>
+  </data>
+  <data name="3758096645" xml:space="preserve">
+    <value>ドライバがデジタル署名されていません。</value>
+  </data>
+  <data name="3758096646" xml:space="preserve">
+    <value>デバイスの検出に失敗しました。</value>
+  </data>
+  <data name="3758096647" xml:space="preserve">
+    <value>ドライバのインストールに失敗しました。</value>
+  </data>
+  <data name="3758096648" xml:space="preserve">
+    <value>ドライバファイルのコピーに失敗しました。</value>
+  </data>
+  <data name="3758096649" xml:space="preserve">
+    <value>デバイス設定の更新に失敗しました。</value>
+  </data>
+  <data name="3758096650" xml:space="preserve">
+    <value>適合するドライバが見つかりません。</value>
+  </data>
+
+  <!-- デバイスインストールエラー -->
+  <data name="3758096910" xml:space="preserve">
+    <value>デバイスマネージャーでデバイスが無効になっています。</value>
+  </data>
+  <data name="3758096911" xml:space="preserve">
+    <value>デバイスに問題が発生しています。</value>
+  </data>
+  <data name="3758096912" xml:space="preserve">
+    <value>デバイスドライバが正しくインストールされていません。</value>
+  </data>
+  <data name="3758096913" xml:space="preserve">
+    <value>デバイスが正常に動作していません。</value>
+  </data>
+  <data name="3758096914" xml:space="preserve">
+    <value>リソースの競合が発生しています。</value>
+  </data>
+  <data name="3758096915" xml:space="preserve">
+    <value>デバイスの初期化に失敗しました。</value>
+  </data>
+
+  <!-- セキュリティと権限エラー -->
+  <data name="2147942405" xml:space="preserve">
+    <value>アクセスが拒否されました。管理者権限で実行してください。</value>
+  </data>
+  <data name="2148204800" xml:space="preserve">
+    <value>証明書の検証に失敗しました。</value>
+  </data>
+  <data name="2148204801" xml:space="preserve">
+    <value>証明書が信頼できません。</value>
+  </data>
+  <data name="2148204809" xml:space="preserve">
+    <value>証明書チェーンの処理中にエラーが発生しました。</value>
+  </data>
+
+  <!-- メモリとリソースエラー -->
+  <data name="8" xml:space="preserve">
+    <value>メモリが不足しています。</value>
+  </data>
+  <data name="14" xml:space="preserve">
+    <value>メモリが不足しています。</value>
+  </data>
+  <data name="1450" xml:space="preserve">
+    <value>システムリソースが不足しています。</value>
+  </data>
+
+  <!-- ネットワークと接続エラー -->
+  <data name="50" xml:space="preserve">
+    <value>ネットワークリクエストがサポートされていません。</value>
+  </data>
+  <data name="53" xml:space="preserve">
+    <value>ネットワークパスが見つかりません。</value>
+  </data>
+  <data name="64" xml:space="preserve">
+    <value>指定されたネットワーク名は利用できません。</value>
+  </data>
+
+  <!-- カスタムエラーメッセージ -->
+  <data name="DriverInstallation_InfFileNotFound" xml:space="preserve">
+    <value>指定された INF ファイルが見つかりません。ファイルパスを確認してください。</value>
+  </data>
+  <data name="DriverInstallation_InvalidInfFile" xml:space="preserve">
+    <value>INF ファイルの形式が正しくないか、破損しています。</value>
+  </data>
+  <data name="DriverInstallation_UnsignedDriver" xml:space="preserve">
+    <value>ドライバがデジタル署名されていません。署名されたドライバを使用してください。</value>
+  </data>
+  <data name="DriverInstallation_InsufficientPrivileges" xml:space="preserve">
+    <value>ドライバのインストールには管理者権限が必要です。</value>
+  </data>
+  <data name="DriverInstallation_DeviceNotFound" xml:space="preserve">
+    <value>対象デバイスが見つかりません。デバイスが接続されているか確認してください。</value>
+  </data>
+  <data name="DriverInstallation_InstallationFailed" xml:space="preserve">
+    <value>ドライバのインストールに失敗しました。デバイスマネージャーを確認してください。</value>
+  </data>
+  <data name="DriverInstallation_CompatibilityIssue" xml:space="preserve">
+    <value>このドライバは現在のシステムと互換性がありません。</value>
+  </data>
+  <data name="DriverInstallation_FileCopyFailed" xml:space="preserve">
+    <value>ドライバファイルのコピーに失敗しました。ディスク容量を確認してください。</value>
+  </data>
+  <data name="DriverInstallation_RegistryUpdateFailed" xml:space="preserve">
+    <value>レジストリの更新に失敗しました。システムに問題がある可能性があります。</value>
+  </data>
+  <data name="DriverInstallation_Timeout" xml:space="preserve">
+    <value>インストール処理がタイムアウトしました。</value>
+  </data>
+
+</root>

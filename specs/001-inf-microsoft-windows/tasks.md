@@ -6,7 +6,7 @@
 
 **機能**: INF ファイルを使用した Windows デバイスドライバのサイレントインストール  
 **対象**: .NET 10 コンソールアプリケーション  
-**技術スタック**: SetupAPI, Microsoft.Extensions.Logging, リソースベースローカライゼーション
+**技術スタック**: SetupAPI, Microsoft.Extensions.Logging, Microsoft.Extensions.Hosting (GenericHost), リソースベースローカライゼーション
 
 ## タスク設計方針
 
@@ -29,9 +29,16 @@
 **機能目標**: アプリケーションの基盤となるプロジェクト構造とデータモデルを構築し、ビルドが通る状態を実現
 
 **実装範囲**:
-- .NET 10 プロジェクトの作成と設定
+- 既存のsample_win_devicedriver_inf_install.slnx及びsample_win_devicedriver_inf_install.csproj（コンソールアプリ部分）を引き継ぐ
 - 必要な NuGet パッケージの追加
+  - Microsoft.Extensions.Hosting（GenericHost）
+  - Microsoft.Extensions.Logging
+  - Microsoft.Extensions.DependencyInjection
 - ソリューション構造の構築
+- コンソールアプリプロジェクトへのGenericHostの導入
+  - HostBuilder の設定
+  - DI コンテナの設定
+  - サービス登録
 - データモデルエンティティの完全実装
   - DriverPackage, InstallationSession, DeviceInstance, InstallationResult
   - ApiErrorInfo, LogEntry などの値オブジェクト
@@ -41,7 +48,10 @@
 
 **成果物**:
 ```
-src/WindowsDriverInstaller/
+sample_win_devicedriver_inf_install.slnx (既存)
+sample_win_devicedriver_inf_install/
+  ├── sample_win_devicedriver_inf_install.csproj (既存・更新)
+  ├── Program.cs (GenericHost対応)
   ├── Models/
   │   ├── DriverPackage.cs
   │   ├── InstallationSession.cs
@@ -57,17 +67,18 @@ src/WindowsDriverInstaller/
       ├── InstallationStatus.cs
       ├── DeviceStatus.cs
       └── LogLevel.cs
-src/WindowsDriverInstaller.Console/
-tests/WindowsDriverInstaller.Tests/
-tests/WindowsDriverInstaller.IntegrationTests/
+tests/sample_win_devicedriver_inf_install.Tests/
+tests/sample_win_devicedriver_inf_install.IntegrationTests/
 ```
 
 **機能テスト**:
 - プロジェクトが正常にビルドされる
+- GenericHostが正しく初期化される
 - データモデルの検証ルールが正しく動作する
 - インターフェースが適切に定義されている
+- DI コンテナでサービスが正しく登録される
 
-**完了条件**: ソリューション全体がビルドエラーなく構築され、データ構造が設計通りに動作する
+**完了条件**: ソリューション全体がビルドエラーなく構築され、GenericHostベースのコンソールアプリケーションが起動し、データ構造が設計通りに動作する
 
 ---
 
@@ -89,7 +100,7 @@ tests/WindowsDriverInstaller.IntegrationTests/
 
 **成果物**:
 ```
-src/WindowsDriverInstaller/
+sample_win_devicedriver_inf_install/
   ├── Native/
   │   └── SetupApi.cs
   ├── Services/
@@ -128,7 +139,7 @@ src/WindowsDriverInstaller/
 
 **成果物**:
 ```
-src/WindowsDriverInstaller/Services/
+sample_win_devicedriver_inf_install/Services/
   ├── DriverInstallationService.cs
   └── DriverStatusService.cs
 ```
@@ -162,7 +173,7 @@ src/WindowsDriverInstaller/Services/
 
 **成果物**:
 ```
-src/WindowsDriverInstaller/Services/
+sample_win_devicedriver_inf_install/Services/
   └── InstallationLogger.cs
 ```
 
@@ -188,11 +199,12 @@ src/WindowsDriverInstaller/Services/
   - `--verbose` デバッグオプション
   - `--output json` 出力形式オプション
   - `--help` ヘルプ表示
-- メインプログラムの実装
-  - DI コンテナの設定とサービス登録
+- GenericHostベースのメインプログラムの実装
+  - HostBuilder の設定とサービス登録
   - CLI コマンドの実行制御
   - 終了コードの適切な設定
   - 例外ハンドリング
+  - IHostedService を使用したコマンド実行
 - 日本語ユーザーインターフェース
   - 進捗表示メッセージ
   - 成功/失敗メッセージ
@@ -200,9 +212,11 @@ src/WindowsDriverInstaller/Services/
 
 **成果物**:
 ```
-src/WindowsDriverInstaller.Console/
+sample_win_devicedriver_inf_install/
   ├── CliParser.cs
-  ├── Program.cs
+  ├── Program.cs (GenericHost対応)
+  ├── Services/
+  │   └── CommandExecutorService.cs
   └── CommandHandlers/
       ├── InstallCommand.cs
       ├── StatusCommand.cs
@@ -215,6 +229,7 @@ src/WindowsDriverInstaller.Console/
 - エラー時に適切な日本語メッセージが表示される
 - `--help` で使用方法が日本語で表示される
 - 終了コードが正しく設定される
+- GenericHostが正しく動作する
 
 **完了条件**: quickstart.md のコマンド例がすべて実行でき、サイレントモードでドライバインストールが完了する
 
@@ -240,7 +255,7 @@ src/WindowsDriverInstaller.Console/
 
 **成果物**:
 ```
-tests/WindowsDriverInstaller.IntegrationTests/
+tests/sample_win_devicedriver_inf_install.IntegrationTests/
   ├── Scenarios/
   │   ├── BasicInstallationScenarioTests.cs
   │   ├── ErrorHandlingScenarioTests.cs
@@ -283,9 +298,9 @@ tests/WindowsDriverInstaller.IntegrationTests/
 
 **成果物**:
 ```
-tests/WindowsDriverInstaller.PerformanceTests/
+tests/sample_win_devicedriver_inf_install.PerformanceTests/
   └── PerformanceTests.cs
-tests/WindowsDriverInstaller.Tests/
+tests/sample_win_devicedriver_inf_install.Tests/
   ├── Services/
   │   ├── DriverInstallationServiceTests.cs
   │   ├── InstallationLoggerTests.cs
@@ -369,13 +384,13 @@ wait
 dotnet build --configuration Release
 
 # 機能検証  
-dotnet test tests/WindowsDriverInstaller.Tests/ --configuration Release
+dotnet test tests/sample_win_devicedriver_inf_install.Tests/ --configuration Release
 
 # 統合検証
-dotnet test tests/WindowsDriverInstaller.IntegrationTests/ --configuration Release
+dotnet test tests/sample_win_devicedriver_inf_install.IntegrationTests/ --configuration Release
 
 # 性能検証
-dotnet test tests/WindowsDriverInstaller.PerformanceTests/ --configuration Release
+dotnet test tests/sample_win_devicedriver_inf_install.PerformanceTests/ --configuration Release
 ```
 
 ## 完了条件

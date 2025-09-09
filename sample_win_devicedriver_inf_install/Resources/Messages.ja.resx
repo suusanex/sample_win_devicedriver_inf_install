@@ -1,0 +1,206 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- アプリケーションメッセージ -->
+  <data name="Application_Started" xml:space="preserve">
+    <value>Windows ドライバインストーラを開始しました。</value>
+  </data>
+  <data name="Application_Finished" xml:space="preserve">
+    <value>Windows ドライバインストーラを終了しました。</value>
+  </data>
+  <data name="Application_Version" xml:space="preserve">
+    <value>Windows ドライバインストーラ バージョン {0}</value>
+  </data>
+
+  <!-- インストール処理メッセージ -->
+  <data name="Installation_Started" xml:space="preserve">
+    <value>ドライバのインストールを開始しています...</value>
+  </data>
+  <data name="Installation_InProgress" xml:space="preserve">
+    <value>ドライバをインストール中です... ({0}%)</value>
+  </data>
+  <data name="Installation_Completed" xml:space="preserve">
+    <value>ドライバのインストールが完了しました。</value>
+  </data>
+  <data name="Installation_Failed" xml:space="preserve">
+    <value>ドライバのインストールに失敗しました。</value>
+  </data>
+  <data name="Installation_Cancelled" xml:space="preserve">
+    <value>ドライバのインストールがキャンセルされました。</value>
+  </data>
+
+  <!-- ファイル検証メッセージ -->
+  <data name="Validation_CheckingInfFile" xml:space="preserve">
+    <value>INF ファイルを確認しています...</value>
+  </data>
+  <data name="Validation_InfFileValid" xml:space="preserve">
+    <value>INF ファイルの形式は正常です。</value>
+  </data>
+  <data name="Validation_CheckingDriverFiles" xml:space="preserve">
+    <value>ドライバファイルを確認しています...</value>
+  </data>
+  <data name="Validation_DriverFilesValid" xml:space="preserve">
+    <value>ドライバファイルは正常です。</value>
+  </data>
+
+  <!-- デバイス検出メッセージ -->
+  <data name="Device_Searching" xml:space="preserve">
+    <value>対象デバイスを検索しています...</value>
+  </data>
+  <data name="Device_Found" xml:space="preserve">
+    <value>対象デバイスが見つかりました: {0}</value>
+  </data>
+  <data name="Device_NotFound" xml:space="preserve">
+    <value>対象デバイスが見つかりませんでした。</value>
+  </data>
+  <data name="Device_StatusChecking" xml:space="preserve">
+    <value>デバイスの状態を確認しています...</value>
+  </data>
+  <data name="Device_StatusOK" xml:space="preserve">
+    <value>デバイスは正常に動作しています。</value>
+  </data>
+
+  <!-- ログメッセージ -->
+  <data name="Log_SessionStarted" xml:space="preserve">
+    <value>インストールセッション {0} を開始しました。</value>
+  </data>
+  <data name="Log_SessionCompleted" xml:space="preserve">
+    <value>インストールセッション {0} が完了しました。</value>
+  </data>
+  <data name="Log_ApiCall" xml:space="preserve">
+    <value>API 呼び出し: {0}</value>
+  </data>
+  <data name="Log_ApiResult" xml:space="preserve">
+    <value>API 結果: {0}</value>
+  </data>
+
+  <!-- 進捗メッセージ -->
+  <data name="Progress_PreparingInstallation" xml:space="preserve">
+    <value>インストールの準備をしています...</value>
+  </data>
+  <data name="Progress_CopyingFiles" xml:space="preserve">
+    <value>ファイルをコピーしています...</value>
+  </data>
+  <data name="Progress_UpdatingRegistry" xml:space="preserve">
+    <value>レジストリを更新しています...</value>
+  </data>
+  <data name="Progress_ConfiguringDevice" xml:space="preserve">
+    <value>デバイスを設定しています...</value>
+  </data>
+  <data name="Progress_VerifyingInstallation" xml:space="preserve">
+    <value>インストールを検証しています...</value>
+  </data>
+
+  <!-- 確認メッセージ -->
+  <data name="Confirm_InstallDriver" xml:space="preserve">
+    <value>ドライバ '{0}' をインストールしますか？</value>
+  </data>
+  <data name="Confirm_OverwriteExisting" xml:space="preserve">
+    <value>既存のドライバを上書きしますか？</value>
+  </data>
+  <data name="Confirm_ContinueWithUnsigned" xml:space="preserve">
+    <value>署名されていないドライバですが、インストールを続行しますか？</value>
+  </data>
+
+  <!-- 状態メッセージ -->
+  <data name="Status_Idle" xml:space="preserve">
+    <value>待機中</value>
+  </data>
+  <data name="Status_Preparing" xml:space="preserve">
+    <value>準備中</value>
+  </data>
+  <data name="Status_Installing" xml:space="preserve">
+    <value>インストール中</value>
+  </data>
+  <data name="Status_Verifying" xml:space="preserve">
+    <value>検証中</value>
+  </data>
+  <data name="Status_Completed" xml:space="preserve">
+    <value>完了</value>
+  </data>
+  <data name="Status_Failed" xml:space="preserve">
+    <value>失敗</value>
+  </data>
+  <data name="Status_Cancelled" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+
+  <!-- ヘルプメッセージ -->
+  <data name="Help_Usage" xml:space="preserve">
+    <value>使用方法: sample_win_devicedriver_inf_install.exe [オプション]</value>
+  </data>
+  <data name="Help_InstallOption" xml:space="preserve">
+    <value>  --install &lt;INFファイルパス&gt;  ドライバをインストールします</value>
+  </data>
+  <data name="Help_StatusOption" xml:space="preserve">
+    <value>  --status &lt;INFファイルパス&gt;   ドライバの状態を確認します</value>
+  </data>
+  <data name="Help_VerboseOption" xml:space="preserve">
+    <value>  --verbose                  詳細なログを出力します</value>
+  </data>
+  <data name="Help_OutputOption" xml:space="preserve">
+    <value>  --output json              出力形式を指定します</value>
+  </data>
+  <data name="Help_HelpOption" xml:space="preserve">
+    <value>  --help                     このヘルプを表示します</value>
+  </data>
+
+</root>
