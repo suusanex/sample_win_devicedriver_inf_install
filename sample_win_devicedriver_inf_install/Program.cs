@@ -44,12 +44,12 @@ public class Program
             {
                 // コア層サービス（FR-014により英語のみ）
                 services.AddSingleton<WindowsApiErrorHandler>();
+                services.AddSingleton<DriverStatusService>();
+                services.AddSingleton<IDriverInstallationService, DriverInstallationService>();
                 
                 // UI層サービス（FR-014により日本語インターフェース）
                 services.AddSingleton<LocalizationService>();
                 services.AddSingleton<ErrorMessageProvider>();
-                
-                // TODO: IDriverInstallationService 実装を追加
                 
                 services.AddHostedService<ConsoleApplicationService>();
             })

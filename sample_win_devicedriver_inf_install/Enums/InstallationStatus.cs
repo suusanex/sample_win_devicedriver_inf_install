@@ -11,6 +11,12 @@ public enum InstallationStatus
     /// <summary>実行中</summary>
     InProgress,
     
+    /// <summary>インストール中</summary>
+    Installing,
+    
+    /// <summary>アンインストール中</summary>
+    Uninstalling,
+    
     /// <summary>成功</summary>
     Completed,
     

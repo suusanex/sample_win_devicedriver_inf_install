@@ -1,70 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 
 namespace WindowsDriverInstaller.Contracts
 {
     /// <summary>
-    /// Windows デバイスドライバインストールサービスのコントラクト
+    /// Windows デバイスドライバの宣言的インストールサービス
+    /// INF ファイルに従って包括的なインストール処理を実行します
     /// </summary>
     public interface IDriverInstallationService
     {
         /// <summary>
-        /// ドライバパッケージをインストールします
+        /// INF ファイルに従ってドライバを宣言的にインストールします。
+        /// 指定されたセクション（CopyFiles, AddReg 等）と関連する .Services セクション（存在する場合）を
+        /// 適切な順序で自動的に適用し、完全なインストール処理を実行します。
         /// </summary>
-        /// <param name="driverPackage">インストールするドライバパッケージ</param>
-        /// <param name="options">インストールオプション</param>
+        /// <param name="infPath">INF ファイルの絶対パス</param>
+        /// <param name="sectionName">適用するセクション名（既定: "DefaultInstall"）</param>
+        /// <param name="flags">必要に応じたフラグ（省略可）</param>
         /// <param name="cancellationToken">キャンセレーショントークン</param>
-        /// <returns>インストール結果</returns>
-        Task<InstallationResult> InstallDriverAsync(
-            DriverPackage driverPackage, 
-            InstallationOptions options = null,
+        /// <returns>包括的なインストール結果</returns>
+        Task<InstallationResult> InstallFromInfAsync(
+            string infPath,
+            string sectionName = "DefaultInstall",
+            uint flags = 0,
             CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// ドライバパッケージをアンインストールします
-        /// </summary>
-        /// <param name="driverPackage">アンインストールするドライバパッケージ</param>
-        /// <param name="cancellationToken">キャンセレーショントークン</param>
-        /// <returns>アンインストール結果</returns>
-        Task<InstallationResult> UninstallDriverAsync(
-            DriverPackage driverPackage,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// インストール済みドライバの状態を確認します
-        /// </summary>
-        /// <param name="hardwareId">ハードウェア識別子</param>
-        /// <returns>ドライバ状態</returns>
-        Task<DriverStatus> GetDriverStatusAsync(string hardwareId);
-
-        /// <summary>
-        /// インストール可能なドライバを検索します
-        /// </summary>
-        /// <param name="hardwareId">ハードウェア識別子</param>
-        /// <returns>利用可能なドライバリスト</returns>
-        Task<IEnumerable<DriverPackage>> FindCompatibleDriversAsync(string hardwareId);
-
-        /// <summary>
-        /// インストールセッションを開始します
-        /// </summary>
-        /// <param name="driverPackage">対象ドライバパッケージ</param>
-        /// <returns>セッション識別子</returns>
-        Guid StartInstallationSession(DriverPackage driverPackage);
-
-        /// <summary>
-        /// インストールセッションの進捗を取得します
-        /// </summary>
-        /// <param name="sessionId">セッション識別子</param>
-        /// <returns>進捗情報</returns>
-        InstallationProgress GetInstallationProgress(Guid sessionId);
-
-        /// <summary>
-        /// インストールセッションをキャンセルします
-        /// </summary>
-        /// <param name="sessionId">セッション識別子</param>
-        /// <returns>キャンセル成功フラグ</returns>
-        Task<bool> CancelInstallationAsync(Guid sessionId);
     }
 }

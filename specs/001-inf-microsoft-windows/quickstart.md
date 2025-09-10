@@ -1,7 +1,7 @@
-﻿# クイックスタートガイド: Windows デバイスドライバ INF インストーラ
+﻿# クイックスタートガイド: Windows デバイスドライバ INF インストーラ（宣言的インストール専用）
 
 ## 概要
-このクイックスタートガイドは、Windows デバイスドライバ INF インストーラコンソールアプリケーションの基本的な使用方法とテスト手順を説明します。
+このクイックスタートは、INF ファイルに従った宣言的インストール（全デバイス対象フィルタ等）の基本的な使用方法とテスト手順を説明します。PnP デバイス個体へのドライバ適用は対象外です。
 
 ## 前提条件
 
@@ -12,162 +12,96 @@
 - テスト用の有効な INF ファイル
 
 ### テスト環境セットアップ
-1. **管理者権限でコマンドプロンプトを開く**
-   ```cmd
-   # Windows + X → "Windows PowerShell (管理者)" を選択
-   ```
-
-2. **アプリケーションビルド**
+1. 管理者権限でコマンドプロンプトを開く
+2. アプリケーションビルド
    ```cmd
    dotnet build --configuration Release
    ```
-
-3. **テストドライバパッケージの準備**
-   - サンプル INF ファイルをテストフォルダに配置
-   - 関連ドライバファイル（.sys, .dll）を同じフォルダに配置
+3. テストドライバパッケージの準備（INF と関連ファイルを同一フォルダへ）
 
 ## 基本使用方法
 
-### 2. ドライバインストール（サイレントモード）
+### INF ファイルに従ったインストール実行
 ```cmd
-sample_win_devicedriver_inf_install.exe --install "C:\DriverTest\sample.inf"
+sample_win_devicedriver_inf_install.exe --install --inf "C:\DriverTest\sample.inf" --section DefaultInstall
 ```
 
+**実行される処理**:
+- 指定された INF セクション（例: DefaultInstall）の適用（CopyFiles, AddReg 等）
+- 関連する .Services セクション（例: DefaultInstall.Services）の自動検出と適用
+- 必要に応じた再起動要求の検出と通知
+
 **期待結果**:
-- INF ファイル検証
-- ユーザー対話なしでインストール実行
+- ユーザー対話なしで実行
 - 成功/失敗の日本語メッセージ
-- ログファイルへの詳細記録
-- 終了コードによる結果報告
+- 詳細ログが出力
 
-### 3. インストール状況確認
+### 追加オプション
 ```cmd
-sample_win_devicedriver_inf_install.exe --status "C:\DriverTest\sample.inf"
-```
+# 特定のセクションを指定してインストール
+sample_win_devicedriver_inf_install.exe --install --inf driver.inf --section CustomInstall
 
-**期待結果**:
-- ドライバのインストール状況表示
-- デバイスマネージャーでの確認方法案内
-- 関連デバイスの一覧表示
+# 詳細ログ出力
+sample_win_devicedriver_inf_install.exe --install --inf driver.inf --verbose
+
+# JSON 形式での結果出力
+sample_win_devicedriver_inf_install.exe --install --inf driver.inf --output json
+
+# ドライラン（事前チェックのみ）
+sample_win_devicedriver_inf_install.exe --dry-run --inf driver.inf
+```
 
 ## テストシナリオ
 
-### シナリオ 1: 有効な INF ファイルでのインストール
+### シナリオ 1: 標準的な INF インストール
+1. `--install --inf sample.inf` を実行
+2. ログで以下の処理成功を確認：
+   - DefaultInstall セクションの適用（CopyFiles, AddReg 等）
+   - DefaultInstall.Services セクションの自動検出と適用（存在する場合）
+   - インストール完了通知
 
-**前提条件**:
-- テスト用ソフトウェアデバイスドライバ INF ファイル
-- 管理者権限でアプリケーション実行
-
-**実行手順**:
-1. `sample_win_devicedriver_inf_install.exe --install test-driver.inf`
-2. インストール完了を確認
-
-**期待結果**:
-- インストール成功メッセージ（日本語）
-- デバイスマネージャーにデバイス表示
-- イベントログにインストール記録
-
-### シナリオ 2: インストール後の検証
-
-**前提条件**:
-- ドライバインストール完了後
-
-**実行手順**:
-1. `sample_win_devicedriver_inf_install.exe --verify test-driver.inf`
-2. デバイスマネージャーで確認
-
-**期待結果**:
-- インストール済みドライバの確認
-- デバイス動作状態の表示
-- 次のステップのガイダンス
+### シナリオ 2: カスタムセクションでのインストール
+1. `--install --inf sample.inf --section MyCustomInstall` を実行
+2. ログでカスタムセクションの処理成功を確認
 
 ## ログとトラブルシューティング
 
 ### ログファイル場所
 ```
-# 実行時ログ
 %TEMP%\DriverInstaller\Logs\installation-{SessionId}.log
-
-# エラーログ
 %TEMP%\DriverInstaller\Logs\error-{Date}.log
 ```
 
 ### よくある問題と解決策
+1. 「INF ファイルが見つかりません」
+   - 絶対パスで指定、権限を確認
+2. 「署名/ポリシー関連で失敗」
+   - 署名やポリシー設定、テスト署名モードを確認
+3. 「セクションが見つかりません」
+   - INF ファイル内のセクション名を確認
+4. SetupAPI エラー
+   - 管理者権限で再実行、詳細はログ参照
 
-1. **「INF ファイルが見つかりません」エラー**
-   - 解決策: ファイルパスの確認、絶対パスの使用
+### 内部処理の確認
+アプリケーションは自動的に以下を実行します：
+- SetupInstallFromInfSectionW による指定セクションの適用
+- .Services セクションの存在確認
+- SetupInstallServicesFromInfSectionW による Services セクションの適用（存在する場合）
+- エラー発生時の適切なロールバック処理
 
-2. **「ハードウェア依存ドライバは対象外です」エラー**
-   - 解決策: ソフトウェアデバイス、フィルタドライバのみ使用
+## パフォーマンス検証（目安）
+- 小規模: 30秒以内 / 中規模: 2分以内 / タイムアウト: 5分
 
-3. **Windows API エラー**
-   - 解決策: 適切な前提条件（管理者権限、署名、競合なし）の確認
-
-### デバッグオプション
-
-```cmd
-# 詳細ログ出力
-sample_win_devicedriver_inf_install.exe --install driver.inf --verbose
-
-# 実行前の事前チェックのみ
-sample_win_devicedriver_inf_install.exe --dry-run driver.inf
-
-# JSON 形式での結果出力
-sample_win_devicedriver_inf_install.exe --install driver.inf --output json
-```
-
-## パフォーマンス検証
-
-### インストール時間の測定
-```cmd
-# PowerShell での時間測定
-Measure-Command { .\sample_win_devicedriver_inf_install.exe --install driver.inf }
-```
-
-**期待値**:
-- 小規模ドライバ: 30秒以内
-- 中規模ドライバ: 2分以内
-- タイムアウト設定: 5分
-
-### メモリ使用量の確認
-```cmd
-# プロセス監視（別ウィンドウで実行）
-Get-Process sample_win_devicedriver_inf_install | Select-Object WorkingSet,VirtualMemorySize
-```
-
-## HLK 互換性テスト準備
-
-### テスト環境設定
-1. Windows Hardware Lab Kit のインストール
-2. テスト署名モードの有効化
-3. テストドライバパッケージの準備
-
-### HLK テスト実行
-```cmd
-# HLK テスト用のドライバインストール
-sample_win_devicedriver_inf_install.exe --install hlk-test-driver.inf --hlk-mode
-```
+## HLK 互換性テスト準備（参考）
+- Windows Hardware Lab Kit のセットアップ
+- テスト署名モードの有効化
+- INF/カタログの準備
 
 ## 次のステップ
+- スクリプト組み込み（CI 等）
+- ログの収集/解析フロー整備
 
-### 本番環境での使用
-1. 本番署名されたドライバの準備
-2. インストールスクリプトの作成
-3. エラーハンドリングとロールバック戦略の策定
-
-### 統合開発
-1. インストールロジックの他のアプリケーションへの統合
-2. カスタムUI の開発
-3. バッチインストールシステムの構築
-
-## サポートとリソース
-
-### ドキュメント
-- [Windows ドライバ開発ガイド](https://docs.microsoft.com/windows-hardware/drivers/)
-- [INF ファイル仕様](https://docs.microsoft.com/windows-hardware/drivers/install/inf-files)
-- [HLK テストガイド](https://docs.microsoft.com/windows-hardware/test/hlk/)
-
-### コミュニティ
-- Windows Driver Kit コミュニティフォーラム
-- GitHub Issues でのバグ報告
-- 機能リクエストの提出
+## ドキュメント/リソース
+- Windows ドライバ開発ガイド
+- INF ファイル仕様
+- HLK テストガイド

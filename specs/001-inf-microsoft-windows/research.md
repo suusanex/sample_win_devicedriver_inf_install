@@ -1,112 +1,83 @@
 ﻿# Windows デバイスドライバインストール調査
 
-## API 選択調査
+## API 選択再検討（T003 リセット）
 
-### 決定: SetupAPI + Device Installation Functions
-**根拠**: HLK 互換性を確保し、2024年の現在のベストプラクティスに従う Windows ドライバインストールのための Microsoft 推奨アプローチ。
+### 決定: SetupAPI による宣言的 INF セクション実行に集約
+本ソフトは「全デバイスに対するフィルタとして宣言的にインストール」する用途のみを対象とする。よって PnP デバイス個体へのバインド処理は不要であり、INF のセクション（例: DefaultInstall とその .Services）を安全に適用する API 構成に限定する。
 
-**使用する主要 API**:
-- `SetupDiCallClassInstaller` - コアドライバインストール
-- `SetupCopyOEMInf` - ドライバパッケージステージング
-- `SetupUninstallOEMInf` - ドライバ削除（将来実装）
-- `GetLastError` - API エラーコード取得
+- 宣言的インストール（デバイス非依存・DefaultInstall 等のセクション実行）
+  - SetupOpenInfFileW / SetupInstallFromInfSectionW / SetupInstallServicesFromInfSectionW / SetupCloseInfFile
+  - 目的: 「rundll32 SETUPAPI.DLL,InstallHinfSection DefaultInstall 132 …」と同等のセクション適用を、rundll32 ではなく API 直接呼び出しで実現（推奨）。サービス登録は .Services を SetupInstallServicesFromInfSectionW で明示的に適用する。
 
-**検討した代替案**:
-- **直接 PnP マネージャー呼び出し**: 低レベル過ぎ、安全性チェックをバイパス
-- **WMI Win32_SystemDriver**: インストールプロセスの制御が不十分
-- **PowerShell Add-WindowsDriver**: 外部依存関係、統合が困難
+この構成により、旧来の InstallHinfSection を rundll32 経由で呼び出す方法を置き換え、プログラムから安全に制御可能な形で等価機能を提供しつつ、DPInst/DIFx などの非推奨技術は使用しない。PnP 個体へのドライバ適用（UpdateDriverForPlugAndPlayDevicesW 等）は本用途のスコープ外とする。
 
-**実装注意事項**:
-- SetupAPI 関数用の P/Invoke ラッパーを使用
-- 署名済みおよび未署名ドライバの両方のシナリオを処理
-- エラーコードの人間が読める形式への適切な変換を実装
-- 事前INF検証は行わず、API実行時エラーのみ処理
+### 根拠
+- Microsoft は DIFx/DPInst を非推奨とし、アプリ側では SetupAPI の直接呼び出しを推奨
+- INF セクション適用は SetupInstallFromInfSectionW が公式かつ直接的な手段
+- サービス登録は SetupInstallServicesFromInfSectionW が公式にサポートする手段であり、[SectionName.Services] を明示的に適用できる
+- HLK/監査観点: 「ファイル/レジストリ適用」と「サービス登録」を明確に区別した実装は説明性が高い
 
-## Windows API エラーハンドリング調査
+### 使用する主要 API（最終）
+- INF セクション実行（宣言的インストール）
+  - SetupOpenInfFileW
+  - SetupInstallFromInfSectionW
+  - SetupInstallServicesFromInfSectionW
+  - SetupCloseInfFile
+- エラー取得
+  - GetLastError、SetupAPI の返却コード
 
-### 決定: SetupAPI エラーコード + GetLastError() 組み合わせ
-**根拠**: INFファイルやドライバパッケージの事前検証は実行者の責務。システムはWindows API実行時のエラーのみを処理し、適切な日本語メッセージに変換。
+### 検討した代替案と棄却理由
+- rundll32 + InstallHinfSection: スクリプト用途向けで制御性/可観測性が低い。推奨は API 直接呼び出し。
+- DIFx（DPInst/DIFxAPI）: 非推奨。HLK/最新ベストプラクティスに反する。
+- PnPUtil/DevCon 実行: 外部ツール依存。統合/ログ/エラーハンドリングが困難。
+- UpdateDriverForPlugAndPlayDevicesW によるデバイス適用: 本ソフトの用途（宣言的・全デバイスフィルタ）では不要。スコープ外。
 
-**エラーハンドリング戦略**:
-1. **API実行時エラー**: `GetLastError()` とSetupAPI固有エラーコードの取得
-2. **エラーコードマッピング**: Windows標準エラーから日本語メッセージへの変換
-3. **コンテキスト情報**: 失敗したAPI名と実行コンテキストの記録
+### 実装方針（T003 に反映）
+- 単一パスを提供（宣言的 INF セクション適用）
+  1) 指定 INF の任意セクション（既定: DefaultInstall）を SetupInstallFromInfSectionW で実行
+  2) 同名の .Services セクション適用（例: DefaultInstall.Services）を SetupInstallServicesFromInfSectionW で明示実行
+- いずれも事前検証は行わず、API 実行時エラーのみを処理（FR-006/FR-014 整合）
+- 実行結果/詳細は Microsoft.Extensions.Logging による構造化ログで記録（英語技術ログ）、UI メッセージは日本語
 
-**検討した代替案**:
-- **事前INF検証**: システム責務外、実行者が事前に検証すべき
-- **カスタム検証**: 不要な複雑性を追加、責務境界を曖昧にする
-- **外部検証ツール**: 依存関係増加、責務外機能
+## Windows API エラーハンドリング
 
-**実装注意事項**:
-- SetupAPI エラーコードの包括的な日本語マッピング
-- システムエラー（アクセス拒否等）と論理エラー（不正INF等）の区別
-- 技術的詳細（英語）とユーザーメッセージ（日本語）の分離
+### 決定: SetupAPI エラーコード + GetLastError の組合せ
+- SetupAPI の戻り値と GetLastError を取得
+- エラーコード → 日本語メッセージのリソースマッピング（既存方針を継承）
+- 失敗 API 名と実行コンテキスト（セクション名、INF パス等）を付加
 
-## 構造化ログ調査
+### 実装注意事項
+- 代表的な SetupAPI エラーコードの日本語化を網羅
+- 権限不足、署名/ポリシー違反、競合、再起動要求などの区別
+- 未知コードは英語技術詳細でフォールバック
 
-### 決定: Microsoft.Extensions.Logging with Custom Providers
-**根拠**: .NET アプリケーションの業界標準、複数の出力形式をサポート、完全にテスト可能。
+## 構造化ログ
 
-**ログアーキテクチャ**:
-- **コンソールプロバイダー**: 日本語ユーザーメッセージ
-- **ファイルプロバイダー**: 英語技術ログとWindows APIエラー詳細
-- **構造化形式**: 機械処理用 JSON、人間読み取り用テキスト
+- Microsoft.Extensions.Logging を継続使用
+- コンソール: 日本語 UI メッセージ
+- ファイル: 英語技術ログ（API 名、セクション、戻り値、LastError）
+- JSON/テキスト併用、セッション相関 ID
 
-**検討した代替案**:
-- **ETW (Event Tracing for Windows)**: コンソールアプリケーションには複雑過ぎ
-- **シンプルファイルログ**: デバッグ機能が制限的
-- **Serilog**: 追加依存関係、Microsoft.Extensions.Logging で十分
+## エラーハンドリングとローカライゼーション
 
-**実装注意事項**:
-- FR-014 に従って UI メッセージ（日本語）と技術ログ（英語）を分離
-- Windows API 呼び出し結果とエラーコードの詳細ログ
-- 事前検証ログは不要、API実行時ログのみ
+- .resx に日本語メッセージを保持
+- 技術詳細（英語）とユーザーメッセージ（日本語）を分離
+- コンテキスト依存メッセージ（セクション名/INF パス）を埋め込み
 
-## エラーハンドリングとローカライゼーション調査
+## テスト戦略（更新）
 
-### 決定: リソースベースローカライゼーション + Windows API エラーマッピング
-**根拠**: Windows API エラーコードを日本語ユーザーメッセージにマッピング。技術詳細は英語ログに記録。
+- 単体テスト（API モック）
+  - SetupInstallFromInfSectionW の失敗/成功分岐
+  - SetupInstallServicesFromInfSectionW の失敗/成功分岐
+- 統合テスト
+  - 正当な INF の DefaultInstall セクション適用（宣言的インストール）
+  - .Services セクション適用の検証（サービス作成/スタートアップ種別/依存関係）
+- ネガティブテスト
+  - 権限不足、署名/ポリシー違反、存在しないセクション/Services セクション
+- 前提条件は従来通り（管理者権限/署名/競合なし）
 
-**ローカライゼーション戦略**:
-- **リソースファイル**: Windows API エラーコード用日本語メッセージ `.resx` ファイル
-- **エラーマッピング**: 構造化エラーコードから適切な説明への変換
-- **フォールバック**: 未知エラーコードに対する一般的英語技術詳細
+## 参考 API と注意点
 
-**検討した代替案**:
-- **ハードコード日本語文字列**: 保守不可能、拡張性なし
-- **外部翻訳サービス**: 不必要な複雑性、ネットワーク依存
-- **事前検証メッセージ**: システム責務外
-
-**実装注意事項**:
-- SetupAPI およびシステムエラーコードの包括的日本語マッピング
-- コンテキスト依存メッセージ（インストール中等）
-- トラブルシューティング用のエラーコード参照情報
-
-## テスト戦略調査
-
-### 決定: APIモックを使用した多層テスト
-**根拠**: 実際のINFファイル検証に依存せず、Windows API応答のテストに焦点。必要な前提条件（管理者権限、適切な署名、競合なし等）は満たされているものと仮定。
-
-**テストアプローチ**:
-1. **単体テスト**: Windows API モックによるエラー応答テスト
-2. **統合テスト**: 実際のSetupAPIを使用したエラーシナリオテスト
-3. **エラーハンドリングテスト**: 各種Windows APIエラーコードの処理検証
-4. **ネガティブテスト**: API実行時エラー条件の処理
-
-**テスト戦略**:
-- Windows API呼び出しのモック化
-- エラーコードマッピングの包括的テスト
-- 日本語メッセージ生成の検証
-- 必要な前提条件は満たされているものと仮定してテスト
-
-**検討した代替案**:
-- **不正INFファイルテスト**: システム責務外、実行者が検証すべき
-- **管理者権限チェックテスト**: 実行時権限不足はAPIエラーとして検出
-- **競合検出テスト**: 実行時競合はAPIエラーとして検出
-- **包括的検証テスト**: 不要な複雑性、責務境界違反
-
-**実装注意事項**:
-- SetupAPI P/Invokeのモック化
-- 実際のWindows APIエラーコードを使用したテストケース
-- 正当なINFファイルのみを使用（検証機能テストは不要）
-- 権限不足、競合、署名問題等はWindows APIエラーとしてテスト
+- SetupInstallFromInfSectionW は CopyFiles / AddReg 等のセクション指示を適用するが、サービス登録は原則 SetupInstallServicesFromInfSectionW で明示的に行うのが安全
+- 再起動要求の検出/伝播に留意（エラーコードや戻り値、必要時のガイダンス表示）
+- DPInst/DIFx は使用しない。rundll32 呼び出しは避け、アプリ内から直接 API を P/Invoke で呼ぶ。

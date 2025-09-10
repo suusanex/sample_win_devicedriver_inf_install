@@ -1,26 +1,30 @@
-﻿# 実装計画: Windows デバイスドライバ INF インストーラ
+﻿# 実装計画: Windows デバイスドライバ INF インストーラ（宣言的インストール専用）
 
 ## 機能概要
-INF ファイルを使用して Windows デバイスドライバをインストールするスタンドアロンコンソールアプリケーション。開発者のテストおよび他のインストーラソリューションへの統合のための再利用可能なロジック層を提供。2024年の Microsoft HLK ベストプラクティスに準拠した Windows ドライバインストールを実装。
+INF ファイルの宣言的インストール（全デバイス対象フィルタ等）に必要なセクション適用のみを実装するスタンドアロンコンソールアプリケーション。開発者のテストおよび他のインストーラソリューションへの統合のための再利用可能なロジック層を提供。2024年の Microsoft HLK ベストプラクティスに準拠した Windows ドライバインストールを実装。
 
 ## 入力分析
-- **ソース**: `/mnt/d/WorkingCopy/spc-app/sample_win_devicedriver_inf_install/specs/001-inf-microsoft-windows/spec.md`
+- **ソース**: `D:/WorkingCopy/spc-app/sample_win_devicedriver_inf_install/specs/001-inf-microsoft-windows/spec.md`
 - **対象プラットフォーム**: .NET 10, Windows 10/11
-- **スコープ**: ファイルシステムミニフィルタ、クラスフィルタ、仮想デバイス（ハードウェア依存ドライバは対象外）
+- **スコープ**: 宣言的インストール（DefaultInstall と .Services の適用）のみ - PnP デバイス個体への適用は対象外
 - **UI言語**: 日本語インターフェース、英語内部ログ
 - **アーキテクチャ**: 分離可能なドライバインストールロジック + CLIラッパー
 - **前提条件**: 管理者権限、適切な署名、競合なし等の前提条件は満たされているものと仮定
 - **エラー処理**: Windows API応答エラーのみ処理、事前検証は実行しない
-- **実行モード**: サイレントモードのみ（FR-012変更）- 対話なしでインストール完了まで実行
+- **実行モード**: サイレントモードのみ（FR-012）- 対話なしでインストール完了まで実行
 
-## 技術的背景
+## 技術的背景（API方針更新）
 - **フレームワーク**: .NET 10 コンソールアプリケーション
-- **Windows API**: SetupAPI, Device Installation APIs, Driver Package Installation
+- **Windows API（最終選定）**:
+  - 宣言的 INF セクション適用: SetupOpenInfFileW / SetupInstallFromInfSectionW / SetupCloseInfFile
+  - サービス登録: SetupInstallServicesFromInfSectionW（.Services セクションの明示適用）
+  - 旧来の rundll32 経由 InstallHinfSection は採用しない（API 直接呼び出しに置換）
+  - PnP デバイス適用 API（UpdateDriverForPlugAndPlayDevicesW, SetupCopyOEMInfW 等）は対象外
 - **ローカライゼーション**: 日本語UI と英語内部ログの分離（FR-014）
 - **ログ**: トラブルシューティング用の構造化ログ
 - **テスト**: HLK 互換性要件
 - **配布**: CLI インターフェースを持つ単一実行ファイル
-- **エラーハンドリング**: Windows API応答に基づくエラー報告のみ
+- **エラーハンドリング**: SetupAPI 戻り値 + GetLastError を使用
 - **実行フロー**: コンソール実行 → 自動処理 → 成功/エラー結果表示 → 終了
 
 ## 基本原則チェック: 初期
@@ -30,30 +34,27 @@ INF ファイルを使用して Windows デバイスドライバをインスト�
 - ✓ ライブラリファースト: ドライバインストールロジックをコンソールUIから分離
 - ✓ CLIインターフェース: テキスト入出力プロトコルを持つコマンドラインツール
 - ✓ テストファースト: ユーザーシナリオから統合テストを指定
-- ✓ シンプリシティ: 明確なスコープ境界を持つ単一目的ツール、事前検証機能および対話モードを除外
+- ✓ シンプリシティ: 明確なスコープ境界を持つ単一目的ツール（宣言的インストールのみ）
 - ✓ 観測可能性: 構造化ログとエラー報告
 
 **基本原則違反は検出されませんでした**
 
-## フェーズ 0: 調査 
+## フェーズ 0: 調査（更新済）
 
-### 生成された調査タスク
+### 生成された調査タスク（最終）
 1. **Windows ドライバインストール API 調査**
-   - 決定: SetupAPI と DevCon スタイルのインストールを使用
-   - 根拠: HLK 準拠のための Microsoft 推奨アプローチ
-   - 検討した代替案: 直接 PnP マネージャー呼び出し（低レベル過ぎ）、WMI（制御不足）
+   - 決定: SetupInstallFromInfSectionW による INF セクション適用 + SetupInstallServicesFromInfSectionW による .Services の明示適用
+   - 根拠: DIFx/DPInst 非推奨。HLK 準拠の推奨 API は SetupAPI 直接呼び出し。セクション適用とサービス登録の分離で説明性向上。
+   - 棄却: rundll32 経由 InstallHinfSection, UpdateDriverForPlugAndPlayDevicesW（本用途では不要）
 
 2. **Windows API エラーハンドリング調査**
-   - 決定: SetupAPI エラーコードとGetLastError()に基づくエラー処理
+   - 決定: SetupAPI 戻り値 + GetLastError に基づくエラー処理
    - 根拠: 事前検証は行わず、API実行時のエラーのみ処理
-   - 検討した代替案: 事前INF検証（責務外）、カスタム検証（不要な複雑性）
 
 3. **ドライバインストールログ調査**
    - 決定: Microsoft.Extensions.Logging とカスタムプロバイダー
-   - 根拠: 構造化ログ、複数の出力形式、テスト可能
-   - 検討した代替案: ETW（複雑）、ファイルのみのログ（デバッグ制限）
 
-**出力**: ✓ research.md 完了 - すべての技術的未知数が解決
+**出力**: ✓ research.md 完了 - 宣言的インストール専用 API 方針に更新済
 
 ## フェーズ 1: 設計とコントラクト
 
@@ -62,14 +63,13 @@ INF ファイルを使用して Windows デバイスドライバをインスト�
 **生成**: `data-model.md`
 1. **DriverPackage** - INF ファイルパス + 関連情報（検証機能なし）
 2. **InstallationSession** - 進捗追跡、ログ、状態
-3. **DeviceInstance** - 対象デバイス情報と状態
-4. **InstallationResult** - 詳細メッセージ付きの成功/失敗
-5. **ApiErrorInfo** - Windows API エラー詳細情報
+3. **InstallationResult** - 詳細メッセージ付きの成功/失敗
+4. **ApiErrorInfo** - Windows API エラー詳細情報
 
 ### 生成された API コントラクト
 
 **生成**: `/contracts/` ディレクトリ
-1. **IDriverInstallationService.cs** - コアインストールインターフェース
+1. **IDriverInstallationService.cs** - 宣言的インストール専用インターフェース（セクション適用とサービス登録）
 2. **IInstallationLogger.cs** - ログ抽象化インターフェース
 3. **IWindowsApiErrorHandler.cs** - Windows API エラー処理インターフェース
 
@@ -78,17 +78,16 @@ INF ファイルを使用して Windows デバイスドライバをインスト�
 - ロガーインターフェーステスト（失敗 - 実装なし）
 - API エラーハンドラーテスト（失敗 - 実装なし）
 
-### 統合テストシナリオ
-1. 有効な INF インストールシナリオ（サイレント実行）
-2. API エラー応答ハンドリングシナリオ（自動エラー報告）
-3. インストール検証シナリオ（自動検証）
+### 統合テストシナリオ（更新）
+1. 宣言的 INF セクション適用シナリオ（DefaultInstall の適用）
+2. サービス登録シナリオ（DefaultInstall.Services の明示適用）
+3. エラー応答ハンドリングシナリオ（権限不足/署名/セクション欠落等）
 
 **生成**: テスト実行手順を含む `quickstart.md`
 
 ### エージェントコンテキスト更新
 **生成**: 以下を含むリポジトリルートのエージェントファイル更新:
-- Windows ドライバインストールコンテキスト
-- SetupAPI 使用パターン
+- SetupInstallFromInfSectionW / SetupInstallServicesFromInfSectionW 使用パターン
 - API エラーハンドリングアプローチ
 - HLK 互換性要件
 - サイレントモード実行パターン
@@ -108,9 +107,9 @@ INF ファイルを使用して Windows デバイスドライバをインスト�
 
 **予想されるタスクカテゴリ**:
 1. **コントラクトテスト** [P] - インターフェース検証（3タスク）
-2. **モデル作成** [P] - エンティティ実装（5タスク）
-3. **サービス実装** - コアロジック（3タスク）
-4. **CLI インターフェース** - サイレント実行層（2タスク、対話機能削除）
+2. **モデル作成** [P] - エンティティ実装（簡素化、4タスク）
+3. **サービス実装** - 宣言的インストールロジック（2タスク）
+4. **CLI インターフェース** - サイレント実行層（2タスク、--install-section/--install-services オプション）
 5. **統合テスト** - エンドツーエンドシナリオ（3タスク、自動実行）
 6. **ローカライゼーション** - 日本語 UI 実装（2タスク）
 
@@ -120,7 +119,7 @@ INF ファイルを使用して Windows デバイスドライバをインスト�
 - CLI 前にサービス層（関心の分離）
 - コンポーネント完了後に統合テスト
 
-**推定出力**: tasks.md に 15-18 の番号付き、依存関係順タスク（対話モード削除により簡素化）
+**推定出力**: tasks.md に 15-18 の番号付き、依存関係順タスク（宣言的インストール専用により簡素化）
 
 **重要**: タスク実行は `/tasks` コマンドで処理
 
@@ -150,4 +149,4 @@ INF ファイルを使用して Windows デバイスドライバをインスト�
 - [x] 複雑性逸脱文書化（なし）
 
 ---
-*基本原則 v2.1.1 に基づく - `/memory/constitution.md` を参照*
+*基本原則 v2.1.1 に基づく - 宣言的インストール専用かつ HLK/監査での説明容易性確保のため、セクション適用とサービス登録を API レベルで分離して実装します。**基本原則 v2.1.1 に基づく - `/memory/constitution.md` を参照*

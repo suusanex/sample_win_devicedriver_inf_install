@@ -131,4 +131,42 @@ public class DeviceInstance
             HardwareId = hardwareId
         };
     }
+
+    /// <summary>
+    /// 詳細な新しいデバイスインスタンスを作成します
+    /// </summary>
+    /// <param name="instanceId">インスタンスID</param>
+    /// <param name="deviceName">デバイス名</param>
+    /// <param name="description">デバイス説明</param>
+    /// <param name="manufacturer">製造者</param>
+    /// <param name="deviceClass">デバイスクラス</param>
+    /// <param name="hardwareIds">ハードウェアID一覧</param>
+    /// <param name="status">デバイス状態</param>
+    /// <returns>新しいDeviceInstanceインスタンス</returns>
+    public static DeviceInstance CreateDetailed(
+        string instanceId,
+        string? deviceName = null,
+        string? description = null,
+        string? manufacturer = null,
+        string? deviceClass = null,
+        List<string>? hardwareIds = null,
+        DeviceStatus status = DeviceStatus.Unknown)
+    {
+        var device = new DeviceInstance
+        {
+            InstanceId = instanceId,
+            DeviceName = deviceName ?? description ?? "Unknown Device",
+            Manufacturer = manufacturer,
+            DeviceClass = deviceClass,
+            Status = status
+        };
+
+        if (hardwareIds?.Any() == true)
+        {
+            device.HardwareId = hardwareIds[0];
+            device.CompatibleIds = hardwareIds.Skip(1).ToList();
+        }
+
+        return device;
+    }
 }

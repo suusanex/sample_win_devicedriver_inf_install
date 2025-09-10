@@ -14,11 +14,17 @@ public enum DeviceStatus
     /// <summary>問題あり</summary>
     Problem,
     
+    /// <summary>問題のあるデバイス</summary>
+    ProblemDevice,
+    
     /// <summary>無効</summary>
     Disabled,
     
     /// <summary>未インストール</summary>
     NotInstalled,
+    
+    /// <summary>存在しない</summary>
+    NotPresent,
     
     /// <summary>インストール中</summary>
     Installing

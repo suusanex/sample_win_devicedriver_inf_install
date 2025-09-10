@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using sample_win_devicedriver_inf_install.Models;
+using sample_win_devicedriver_inf_install.Core.Models;
 using System.ComponentModel.DataAnnotations;
 using Xunit;
 
@@ -22,13 +22,13 @@ public class DriverPackageTests
         var package = new DriverPackage
         {
             Id = id,
-            InfFilePath = infPath,
+            InfPath = infPath,
             Name = name
         };
 
         // Assert
         package.Id.Should().Be(id);
-        package.InfFilePath.Should().Be(infPath);
+        package.InfPath.Should().Be(infPath);
         package.Name.Should().Be(name);
         package.HardwareIds.Should().NotBeNull().And.BeEmpty();
         package.CompatibleIds.Should().NotBeNull().And.BeEmpty();
@@ -43,7 +43,7 @@ public class DriverPackageTests
         var package = new DriverPackage
         {
             Id = "test",
-            InfFilePath = "non-existent.inf"
+            InfPath = "non-existent.inf"
         };
 
         // Act
@@ -60,7 +60,7 @@ public class DriverPackageTests
         var package = new DriverPackage
         {
             Id = "test",
-            InfFilePath = ""
+            InfPath = ""
         };
 
         // Act
@@ -80,7 +80,7 @@ public class DriverPackageTests
         var package = new DriverPackage
         {
             Id = "test",
-            InfFilePath = invalidPath!
+            InfPath = invalidPath!
         };
 
         // Act

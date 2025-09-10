@@ -1,4 +1,4 @@
-﻿# データモデル: Windows デバイスドライバ INF インストーラ
+﻿# データモデル: Windows デバイスドライバ INF インストーラ（宣言的インストール専用）
 
 ## コアエンティティ
 
@@ -21,7 +21,7 @@
 - Windows API 実行時にエラーが発生した場合のみエラー処理を行う
 
 ### InstallationSession
-**目的**: 単一のドライバインストール操作の状態と進捗を追跡。
+**目的**: 単一の INF ベース宣言的インストール操作の状態と進捗を追跡。
 
 **プロパティ**:
 - `SessionId: Guid` - 一意のセッション識別子
@@ -34,45 +34,24 @@
 - `LogEntries: List<LogEntry>` - インストールログメッセージ
 - `ApiError: ApiErrorInfo?` - Windows API エラー情報
 - `RequiresReboot: bool` - システム再起動が必要かどうか
-- `InstalledDevices: List<DeviceInstance>` - 正常にインストールされたデバイス
+- `SectionName: string` - 適用対象セクション名（例: "DefaultInstall"）
 
 **検証ルール**:
 - SessionId は一意でなければならない
 - 進捗開始前に StartTime が設定されている必要がある
 - Progress は 0-100 の範囲でなければならない
 - EndTime は状態が完了または失敗の場合のみ設定
+- SectionName は空でない文字列でなければならない
 
 **状態遷移**:
 - `保留中` → `進行中` → `完了`
 - `保留中` → `進行中` → `失敗`
 - 逆方向の遷移は許可されない
 
-### DeviceInstance
-**目的**: インストールされたドライバに関連付けられた特定のハードウェアデバイスを表現。
-
-**プロパティ**:
-- `DeviceInstanceId: string` - Windows デバイスインスタンス識別子
-- `HardwareId: string?` - 主要ハードウェア識別子（API から取得可能な場合）
-- `DeviceName: string?` - 人間が読める形式のデバイス名（API から取得可能な場合）
-- `DeviceClass: string?` - デバイスクラス（API から取得可能な場合）
-- `DriverVersion: Version?` - インストールされたドライババージョン（API から取得可能な場合）
-- `DriverDate: DateTime?` - ドライバ日付（API から取得可能な場合）
-- `Status: DeviceStatus` - デバイス動作状態
-- `InstallationSession: Guid` - 関連するインストールセッション
-- `IsPresent: bool` - デバイスが現在存在するかどうか
-- `LastSeen: DateTime` - 最後の検出タイムスタンプ
-
-**検証ルール**:
-- DeviceInstanceId は空でない文字列でなければならない
-- Status は有効な DeviceStatus 列挙値でなければならない
-- InstallationSession は有効な Guid でなければならない
-
-**関係**:
-- 一つの InstallationSession に属する
-- 一つの DriverPackage を参照する場合がある
+**注意**: セクション適用とサービス登録の詳細な進捗は内部処理であり、ユーザーには統一されたインストール進捗として提供される
 
 ### InstallationResult
-**目的**: インストール操作の最終結果と詳細情報。
+**目的**: INF ベース宣言的インストール操作の最終結果と詳細情報。
 
 **プロパティ**:
 - `Success: bool` - インストール成功フラグ
@@ -80,15 +59,18 @@
 - `ApiError: ApiErrorInfo?` - Windows API エラー情報（失敗時）
 - `LocalizedMessage: string` - 日本語ユーザーメッセージ
 - `TechnicalDetails: string` - 英語技術詳細（ログ用）
-- `InstalledDevices: List<DeviceInstance>` - インストールされたデバイスリスト
 - `RequiresReboot: bool` - システム再起動が必要かどうか
 - `Duration: TimeSpan` - インストール実行時間
 - `LogEntries: List<LogEntry>` - 関連ログエントリ
+- `InfSectionProcessed: bool` - INF セクション処理が完了したかどうか
+- `ServicesProcessed: bool` - サービス関連処理が完了したかどうか（該当する場合）
 
 **検証ルール**:
 - Success が false の場合、ApiError または LocalizedMessage が設定されている必要がある
 - SessionId は有効な Guid でなければならない
 - Duration は非負の値でなければならない
+
+**注意**: 個別の API 呼び出し結果ではなく、INF に従った包括的なインストール結果を表現
 
 ## 値オブジェクト
 
@@ -125,13 +107,6 @@
 - `失敗` - インストール失敗
 - `キャンセル` - ユーザーによってインストールがキャンセルされた
 
-### DeviceStatus
-- `動作中` - デバイスが正常に機能している
-- `エラー` - デバイスに問題がある
-- `無効` - ユーザー/システムによってデバイスが無効化されている
-- `不明` - 状態を判定できない
-- `不存在` - デバイスが現在接続されていない
-
 ### LogLevel
 - `Debug` - デバッグ情報
 - `Information` - 一般情報
@@ -144,7 +119,6 @@
 ```
 DriverPackage (1) ←→ (1) InstallationSession
 InstallationSession (1) ←→ (*) LogEntry
-InstallationSession (1) ←→ (*) DeviceInstance
 InstallationSession (1) ←→ (1) InstallationResult
 InstallationResult (1) ←→ (0..1) ApiErrorInfo
 LogEntry (1) ←→ (0..1) ApiErrorInfo
@@ -156,18 +130,17 @@ LogEntry (1) ←→ (0..1) ApiErrorInfo
 **主キー**:
 - DriverPackage: InfFilePath
 - InstallationSession: SessionId
-- DeviceInstance: DeviceInstanceId
 - InstallationResult: SessionId
 
 **インデックス**（永続化を実装する場合）:
 - InstallationSession.StartTime（時系列クエリ用）
-- DeviceInstance.HardwareId（デバイス検索用）
 - LogEntry.CorrelationId（セッションログ取得用）
 
 ## 責務境界の明確化
 
 ### システムが実行すること
-- Windows API 呼び出しの実行
+- INF ファイルに基づく包括的なインストール処理の実行
+- 適切な順序でのセクション適用とサービス登録（SetupInstallFromInfSectionW / SetupInstallServicesFromInfSectionW の内部使い分け）
 - API エラーレスポンスの処理と日本語メッセージ変換
 - インストール進捗の追跡とログ記録
 
@@ -179,5 +152,12 @@ LogEntry (1) ←→ (0..1) ApiErrorInfo
 - デジタル署名の事前検証
 - カスタムビジネスルール検証
 - INF ファイル内容の解析や変更
+- PnP デバイス個体への適用やデバイス状態確認
 
-**理由**: これらの検証は実行者（システム利用者）の責務であり、システムは Windows API の実行とその結果の処理のみに焦点を当てることで、責務を明確化し複雑性を削減する。必要な前提条件（管理者権限、適切な署名、競合なし等）は満たされているものと仮定し、不足時は Windows API からのエラーとして検出・処理する。
+### 内部実装詳細（ユーザーに露出しない）
+- SetupInstallFromInfSectionW と SetupInstallServicesFromInfSectionW の使い分けロジック
+- .Services セクションの存在確認と条件付き実行
+- API 呼び出しの最適な順序制御
+- 各 API のエラー状態管理と統合
+
+**理由**: ユーザーは「INF に従ってインストールを実行する」という単一の操作を求めており、内部的な API の使い分けは実装詳細である。システムは INF に記述された内容を適切に解釈し、必要な処理を自動的に実行することで、シンプルで直感的なインターフェースを提供する。
