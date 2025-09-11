@@ -1,10 +1,9 @@
 ﻿using sample_win_devicedriver_inf_install.Models.ValueObjects;
 
-namespace sample_win_devicedriver_inf_install.Core.Contracts;
+namespace sample_win_devicedriver_inf_install.Contracts;
 
 /// <summary>
-/// インストールログサービスインターフェース（コア層 - FR-014準拠）
-/// 技術的ログ記録機能を提供します（英語ログ出力）
+/// インストールログサービスインターフェース（宣言的インストール専用）
 /// </summary>
 public interface IInstallationLogger
 {

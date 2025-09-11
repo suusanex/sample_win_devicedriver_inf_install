@@ -29,9 +29,9 @@
                 <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
               </xsd:sequence>
               <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="xml:space" type="xsd:string" />
               <xsd:attribute name="type" type="xsd:string" />
               <xsd:attribute name="mimetype" type="xsd:string" />
-              <xsd:attribute ref="xml:space" />
             </xsd:complexType>
           </xsd:element>
           <xsd:element name="resheader">
@@ -199,4 +199,43 @@
     <value>インストール処理がタイムアウトしました。</value>
   </data>
 
+  <!-- SetupAPI エラーメッセージ -->
+  <data name="Error_FileNotFound" xml:space="preserve">
+    <value>INFファイルが見つかりません。ファイルパスを確認してください。</value>
+  </data>
+  <data name="Error_AccessDenied" xml:space="preserve">
+    <value>アクセスが拒否されました。管理者権限で実行してください。</value>
+  </data>
+  <data name="Error_InvalidParameter" xml:space="preserve">
+    <value>不正なパラメータが指定されました。</value>
+  </data>
+  <data name="Error_InfFormatInvalid" xml:space="preserve">
+    <value>INFファイルの形式が無効です。</value>
+  </data>
+  <data name="Error_SectionNotFound" xml:space="preserve">
+    <value>指定されたセクションがINFファイルに見つかりません。</value>
+  </data>
+  <data name="Error_RegistryOperationFailed" xml:space="preserve">
+    <value>レジストリ操作が失敗しました。</value>
+  </data>
+  <data name="Error_FileCopyFailed" xml:space="preserve">
+    <value>ファイルのコピー操作が失敗しました。</value>
+  </data>
+  <data name="Error_UnknownError" xml:space="preserve">
+    <value>不明なエラーが発生しました (エラーコード: {0})。</value>
+  </data>
+
+  <!-- トラブルシューティングメッセージ -->
+  <data name="Troubleshooting_CheckFileExists" xml:space="preserve">
+    <value>INFファイルが存在することを確認してください。</value>
+  </data>
+  <data name="Troubleshooting_RunAsAdmin" xml:space="preserve">
+    <value>管理者権限でアプリケーションを実行してください。</value>
+  </data>
+  <data name="Troubleshooting_CheckInfFormat" xml:space="preserve">
+    <value>INFファイルの形式と内容を確認してください。</value>
+  </data>
+  <data name="Troubleshooting_CheckSection" xml:space="preserve">
+    <value>INFファイルに指定されたセクションが存在することを確認してください。</value>
+  </data>
 </root>

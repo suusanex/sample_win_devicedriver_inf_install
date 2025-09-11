@@ -1,15 +1,13 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
-using sample_win_devicedriver_inf_install.Core.Models.ValueObjects;
+using sample_win_devicedriver_inf_install.Models.ValueObjects;
 using sample_win_devicedriver_inf_install.Native;
 
-namespace sample_win_devicedriver_inf_install.Core.Services;
+namespace sample_win_devicedriver_inf_install.Services;
 
 /// <summary>
-/// Windows API エラーハンドラー（コア層 - FR-014準拠）
-/// ローカライズされたメッセージを含まない技術的エラー解析を提供します
+/// Windows API エラーハンドラー（宣言的インストール専用）
 /// </summary>
 public class WindowsApiErrorHandler
 {
@@ -89,8 +87,8 @@ public class WindowsApiErrorHandler
             details += $", Additional Context: {additionalContext}";
         }
 
-        // トラブルシューティング用の一般的な SetupAPI エラーコード説明を追加
-        var setupApiExplanation = GetSetupApiErrorExplanation(errorCode);
+        // 宣言的インストール用のSetupAPIエラーコード説明を追加
+        var setupApiExplanation = GetDeclarativeInstallErrorExplanation(errorCode);
         if (!string.IsNullOrEmpty(setupApiExplanation))
         {
             details += $", SetupAPI Context: {setupApiExplanation}";
@@ -100,52 +98,27 @@ public class WindowsApiErrorHandler
     }
 
     /// <summary>
-    /// 一般的な SetupAPI エラーコードの技術的説明を取得します（英語）
+    /// 宣言的インストールに関連する SetupAPI エラーコードの技術的説明を取得します（英語）
     /// </summary>
     /// <param name="errorCode">エラーコード</param>
-    /// <returns>技術的説明、または既知の SetupAPI エラーでない場合は null</returns>
-    private string? GetSetupApiErrorExplanation(uint errorCode)
+    /// <returns>技術的説明、または既知のエラーでない場合は null</returns>
+    private string? GetDeclarativeInstallErrorExplanation(uint errorCode)
     {
         return errorCode switch
         {
             // ファイルシステムエラー
-            2 => "The system cannot find the file specified.",
-            3 => "The system cannot find the path specified.",
-            5 => "Access is denied. Administrator privileges may be required.",
-            32 => "The process cannot access the file because it is being used by another process.",
-            87 => "The parameter is incorrect.",
+            2 => "The INF file was not found.",
+            3 => "The INF file path is invalid.",
+            5 => "Access denied. Administrator privileges required for installation.",
+            87 => "Invalid parameter passed to SetupAPI function.",
             
-            // Setup API 固有エラー
-            0xE0000100 => "INF file not found or invalid format.",
-            0xE0000101 => "INF file section not found.",
-            0xE0000102 => "INF file line not found.",
-            0xE0000103 => "INF file key not found.",
-            0xE0000104 => "Registry write operation failed.",
-            0xE0000105 => "Driver is not digitally signed.",
-            0xE0000106 => "Device detection failed.",
-            0xE0000107 => "Driver installation failed.",
-            0xE0000108 => "Driver file copy operation failed.",
-            0xE0000109 => "Device configuration update failed.",
-            0xE000010A => "No compatible driver found.",
-            
-            // デバイスインストールエラー
-            0xE000020E => "Device is disabled in Device Manager.",
-            0xE000020F => "Device has a problem.",
-            0xE0000210 => "Device driver is not properly installed.",
-            0xE0000211 => "Device is not functioning properly.",
-            0xE0000212 => "Resource conflict occurred.",
-            0xE0000213 => "Device initialization failed.",
-            
-            // セキュリティと権限エラー
-            0x80070005 => "Access denied. Administrator privileges required.",
-            0x800B0100 => "Certificate verification failed.",
-            0x800B0101 => "Certificate is not trusted.",
-            0x800B0109 => "Error occurred during certificate chain processing.",
-            
-            // メモリとリソースエラー
-            8 => "Not enough storage is available to process this command.",
-            14 => "Not enough storage is available to complete this operation.",
-            1450 => "Insufficient system resources exist to complete the requested service.",
+            // INF 固有エラー
+            0xE0000100 => "INF file format is invalid or corrupted.",
+            0xE0000101 => "Required section not found in INF file.",
+            0xE0000102 => "INF file line format is invalid.",
+            0xE0000103 => "Required key not found in INF section.",
+            0xE0000104 => "Registry operation failed during installation.",
+            0xE0000108 => "File copy operation failed during installation.",
             
             _ => null
         };
@@ -205,25 +178,6 @@ public class WindowsApiErrorHandler
             details += $", Error Code: 0x{errorCode:X8}";
         }
         
-        if (!string.IsNullOrEmpty(exception.StackTrace))
-        {
-            details += $", StackTrace: {exception.StackTrace}";
-        }
-        
         return details;
     }
-
-    /// <summary>
-    /// HRESULT が成功を示すかどうかをチェックします
-    /// </summary>
-    /// <param name="hresult">HRESULT 値</param>
-    /// <returns>成功した場合は true</returns>
-    public static bool Succeeded(int hresult) => hresult >= 0;
-
-    /// <summary>
-    /// HRESULT が失敗を示すかどうかをチェックします
-    /// </summary>
-    /// <param name="hresult">HRESULT 値</param>
-    /// <returns>失敗した場合は true</returns>
-    public static bool Failed(int hresult) => hresult < 0;
 }

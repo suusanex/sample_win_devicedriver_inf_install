@@ -29,9 +29,9 @@
                 <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
               </xsd:sequence>
               <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="xml:space" type="xsd:string" />
               <xsd:attribute name="type" type="xsd:string" />
               <xsd:attribute name="mimetype" type="xsd:string" />
-              <xsd:attribute ref="xml:space" />
             </xsd:complexType>
           </xsd:element>
           <xsd:element name="resheader">
@@ -58,149 +58,161 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-
+  
   <!-- アプリケーションメッセージ -->
-  <data name="Application_Started" xml:space="preserve">
-    <value>Windows ドライバインストーラを開始しました。</value>
+  <data name="App_Starting" xml:space="preserve">
+    <value>Windows ドライバインストーラを開始しています...</value>
   </data>
-  <data name="Application_Finished" xml:space="preserve">
-    <value>Windows ドライバインストーラを終了しました。</value>
+  <data name="App_Completed" xml:space="preserve">
+    <value>処理が正常に完了しました。</value>
   </data>
-  <data name="Application_Version" xml:space="preserve">
-    <value>Windows ドライバインストーラ バージョン {0}</value>
+  <data name="App_Cancelled" xml:space="preserve">
+    <value>処理がキャンセルされました。</value>
   </data>
-
-  <!-- インストール処理メッセージ -->
-  <data name="Installation_Started" xml:space="preserve">
-    <value>ドライバのインストールを開始しています...</value>
+  <data name="App_Error" xml:space="preserve">
+    <value>エラーが発生しました: {0}</value>
   </data>
-  <data name="Installation_InProgress" xml:space="preserve">
-    <value>ドライバをインストール中です... ({0}%)</value>
+  
+  <!-- CLI メッセージ -->
+  <data name="Cli_HelpHeader" xml:space="preserve">
+    <value>Windows ドライバ INF インストーラ - 宣言的インストール専用</value>
   </data>
-  <data name="Installation_Completed" xml:space="preserve">
-    <value>ドライバのインストールが完了しました。</value>
+  <data name="Cli_Usage" xml:space="preserve">
+    <value>使用方法: sample_win_devicedriver_inf_install [オプション]</value>
   </data>
-  <data name="Installation_Failed" xml:space="preserve">
+  <data name="Cli_OptionsHeader" xml:space="preserve">
+    <value>オプション:</value>
+  </data>
+  <data name="Cli_InstallHelp" xml:space="preserve">
+    <value>  --install              INF ファイルに従ってドライバをインストールします</value>
+  </data>
+  <data name="Cli_InfHelp" xml:space="preserve">
+    <value>  --inf &lt;パス&gt;           INF ファイルのパスを指定します (必須)</value>
+  </data>
+  <data name="Cli_SectionHelp" xml:space="preserve">
+    <value>  --section &lt;セクション&gt;  インストールセクション名 (デフォルト: DefaultInstall)</value>
+  </data>
+  <data name="Cli_VerboseHelp" xml:space="preserve">
+    <value>  --verbose              詳細なログ出力を有効にします</value>
+  </data>
+  <data name="Cli_OutputHelp" xml:space="preserve">
+    <value>  --output &lt;形式&gt;        出力形式を指定します (json)</value>
+  </data>
+  <data name="Cli_DryRunHelp" xml:space="preserve">
+    <value>  --dry-run              実際のインストールを行わず事前チェックのみ実行します</value>
+  </data>
+  <data name="Cli_HelpHelp" xml:space="preserve">
+    <value>  --help                 このヘルプメッセージを表示します</value>
+  </data>
+  <data name="Cli_ExampleHeader" xml:space="preserve">
+    <value>使用例:</value>
+  </data>
+  <data name="Cli_Example1" xml:space="preserve">
+    <value>  sample_win_devicedriver_inf_install --install --inf C:\Driver\mydriver.inf</value>
+  </data>
+  <data name="Cli_Example2" xml:space="preserve">
+    <value>  sample_win_devicedriver_inf_install --install --inf mydriver.inf --section MyInstall --verbose</value>
+  </data>
+  <data name="Cli_Example3" xml:space="preserve">
+    <value>  sample_win_devicedriver_inf_install --install --inf mydriver.inf --dry-run --output json</value>
+  </data>
+  <data name="Cli_InvalidArguments" xml:space="preserve">
+    <value>無効な引数です。--help オプションでヘルプを表示してください。</value>
+  </data>
+  <data name="Cli_MissingInfPath" xml:space="preserve">
+    <value>--inf オプションでINFファイルのパスを指定してください。</value>
+  </data>
+  <data name="Cli_InfFileNotFound" xml:space="preserve">
+    <value>指定されたINFファイルが見つかりません: {0}</value>
+  </data>
+  <data name="Cli_DryRunMode" xml:space="preserve">
+    <value>ドライランモード: 実際のインストールは実行されません</value>
+  </data>
+  <data name="Cli_VerboseMode" xml:space="preserve">
+    <value>詳細モードが有効になりました</value>
+  </data>
+  <data name="Cli_UnknownOption" xml:space="preserve">
+    <value>不明なオプション: {0}</value>
+  </data>
+  <data name="Cli_InvalidOutputFormat" xml:space="preserve">
+    <value>無効な出力形式: {0}</value>
+  </data>
+  
+  <!-- インストールメッセージ -->
+  <data name="Install_Starting" xml:space="preserve">
+    <value>ドライバのインストールを開始します...</value>
+  </data>
+  <data name="Install_Success" xml:space="preserve">
+    <value>ドライバのインストールが正常に完了しました。</value>
+  </data>
+  <data name="Install_Failed" xml:space="preserve">
     <value>ドライバのインストールに失敗しました。</value>
   </data>
-  <data name="Installation_Cancelled" xml:space="preserve">
-    <value>ドライバのインストールがキャンセルされました。</value>
+  <data name="Install_Progress" xml:space="preserve">
+    <value>進捗: {0}% - {1}</value>
   </data>
-
-  <!-- ファイル検証メッセージ -->
-  <data name="Validation_CheckingInfFile" xml:space="preserve">
-    <value>INF ファイルを確認しています...</value>
+  
+  <!-- INFファイル関連メッセージ -->
+  <data name="Inf_Opening" xml:space="preserve">
+    <value>INFファイルを開いています: {0}</value>
   </data>
-  <data name="Validation_InfFileValid" xml:space="preserve">
-    <value>INF ファイルの形式は正常です。</value>
+  <data name="Inf_Processing" xml:space="preserve">
+    <value>INFセクション '{0}' を処理しています...</value>
   </data>
-  <data name="Validation_CheckingDriverFiles" xml:space="preserve">
-    <value>ドライバファイルを確認しています...</value>
+  <data name="Inf_ServicesProcessing" xml:space="preserve">
+    <value>サービスセクションを処理しています...</value>
   </data>
-  <data name="Validation_DriverFilesValid" xml:space="preserve">
-    <value>ドライバファイルは正常です。</value>
+  
+  <!-- ログ機能関連メッセージ -->
+  <data name="Log_Starting" xml:space="preserve">
+    <value>ログシステムを開始しています...</value>
   </data>
-
-  <!-- デバイス検出メッセージ -->
-  <data name="Device_Searching" xml:space="preserve">
-    <value>対象デバイスを検索しています...</value>
-  </data>
-  <data name="Device_Found" xml:space="preserve">
-    <value>対象デバイスが見つかりました: {0}</value>
-  </data>
-  <data name="Device_NotFound" xml:space="preserve">
-    <value>対象デバイスが見つかりませんでした。</value>
-  </data>
-  <data name="Device_StatusChecking" xml:space="preserve">
-    <value>デバイスの状態を確認しています...</value>
-  </data>
-  <data name="Device_StatusOK" xml:space="preserve">
-    <value>デバイスは正常に動作しています。</value>
-  </data>
-
-  <!-- ログメッセージ -->
   <data name="Log_SessionStarted" xml:space="preserve">
-    <value>インストールセッション {0} を開始しました。</value>
+    <value>ログセッションが開始されました (相関ID: {0})</value>
   </data>
   <data name="Log_SessionCompleted" xml:space="preserve">
-    <value>インストールセッション {0} が完了しました。</value>
+    <value>ログセッションが完了しました (相関ID: {0})</value>
   </data>
-  <data name="Log_ApiCall" xml:space="preserve">
-    <value>API 呼び出し: {0}</value>
+  <data name="Log_EntriesRecorded" xml:space="preserve">
+    <value>{0} 件のログエントリが記録されました</value>
   </data>
-  <data name="Log_ApiResult" xml:space="preserve">
-    <value>API 結果: {0}</value>
+  <data name="Log_ExportStarted" xml:space="preserve">
+    <value>ログエクスポートを開始しています...</value>
   </data>
-
-  <!-- 進捗メッセージ -->
-  <data name="Progress_PreparingInstallation" xml:space="preserve">
-    <value>インストールの準備をしています...</value>
+  <data name="Log_ExportCompleted" xml:space="preserve">
+    <value>ログエクスポートが完了しました: {0}</value>
   </data>
-  <data name="Progress_CopyingFiles" xml:space="preserve">
-    <value>ファイルをコピーしています...</value>
+  <data name="Log_ExportFailed" xml:space="preserve">
+    <value>ログエクスポートに失敗しました: {0}</value>
   </data>
-  <data name="Progress_UpdatingRegistry" xml:space="preserve">
-    <value>レジストリを更新しています...</value>
+  <data name="Log_RotationStarted" xml:space="preserve">
+    <value>ログローテーションを開始しています...</value>
   </data>
-  <data name="Progress_ConfiguringDevice" xml:space="preserve">
-    <value>デバイスを設定しています...</value>
+  <data name="Log_RotationCompleted" xml:space="preserve">
+    <value>ログローテーションが完了しました</value>
   </data>
-  <data name="Progress_VerifyingInstallation" xml:space="preserve">
-    <value>インストールを検証しています...</value>
+  <data name="Log_CleanupStarted" xml:space="preserve">
+    <value>古いログの削除を開始しています...</value>
   </data>
-
-  <!-- 確認メッセージ -->
-  <data name="Confirm_InstallDriver" xml:space="preserve">
-    <value>ドライバ '{0}' をインストールしますか？</value>
+  <data name="Log_CleanupCompleted" xml:space="preserve">
+    <value>{0} 件の古いログエントリを削除しました</value>
   </data>
-  <data name="Confirm_OverwriteExisting" xml:space="preserve">
-    <value>既存のドライバを上書きしますか？</value>
+  <data name="Log_FilesCleanedUp" xml:space="preserve">
+    <value>{0} 個の古いログファイルを削除しました</value>
   </data>
-  <data name="Confirm_ContinueWithUnsigned" xml:space="preserve">
-    <value>署名されていないドライバですが、インストールを続行しますか？</value>
+  <data name="Log_NoEntriesFound" xml:space="preserve">
+    <value>指定された相関ID '{0}' のログエントリが見つかりません</value>
   </data>
-
-  <!-- 状態メッセージ -->
-  <data name="Status_Idle" xml:space="preserve">
-    <value>待機中</value>
+  <data name="Log_CorrelationTracking" xml:space="preserve">
+    <value>相関ID '{0}' によるセッション追跡が有効です</value>
   </data>
-  <data name="Status_Preparing" xml:space="preserve">
-    <value>準備中</value>
+  <data name="Log_StructuredLogging" xml:space="preserve">
+    <value>構造化ログが有効になりました</value>
   </data>
-  <data name="Status_Installing" xml:space="preserve">
-    <value>インストール中</value>
+  <data name="Log_FileOutputEnabled" xml:space="preserve">
+    <value>ファイル出力が有効になりました: {0}</value>
   </data>
-  <data name="Status_Verifying" xml:space="preserve">
-    <value>検証中</value>
+  <data name="Log_ConsoleOutputEnabled" xml:space="preserve">
+    <value>コンソール出力が有効になりました</value>
   </data>
-  <data name="Status_Completed" xml:space="preserve">
-    <value>完了</value>
-  </data>
-  <data name="Status_Failed" xml:space="preserve">
-    <value>失敗</value>
-  </data>
-  <data name="Status_Cancelled" xml:space="preserve">
-    <value>キャンセル</value>
-  </data>
-
-  <!-- ヘルプメッセージ -->
-  <data name="Help_Usage" xml:space="preserve">
-    <value>使用方法: sample_win_devicedriver_inf_install.exe [オプション]</value>
-  </data>
-  <data name="Help_InstallOption" xml:space="preserve">
-    <value>  --install &lt;INFファイルパス&gt;  ドライバをインストールします</value>
-  </data>
-  <data name="Help_StatusOption" xml:space="preserve">
-    <value>  --status &lt;INFファイルパス&gt;   ドライバの状態を確認します</value>
-  </data>
-  <data name="Help_VerboseOption" xml:space="preserve">
-    <value>  --verbose                  詳細なログを出力します</value>
-  </data>
-  <data name="Help_OutputOption" xml:space="preserve">
-    <value>  --output json              出力形式を指定します</value>
-  </data>
-  <data name="Help_HelpOption" xml:space="preserve">
-    <value>  --help                     このヘルプを表示します</value>
-  </data>
-
 </root>

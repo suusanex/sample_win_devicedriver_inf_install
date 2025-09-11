@@ -23,6 +23,11 @@ public readonly record struct LogEntry(
 )
 {
     /// <summary>
+    /// 詳細情報（CLI用）
+    /// </summary>
+    public string? Details => Exception?.ToString() ?? Properties?.ToString();
+
+    /// <summary>
     /// ログエントリを作成します
     /// </summary>
     /// <param name="level">ログレベル</param>

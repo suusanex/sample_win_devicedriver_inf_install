@@ -1,13 +1,11 @@
 ﻿using sample_win_devicedriver_inf_install.Enums;
-using sample_win_devicedriver_inf_install.Core.Models.ValueObjects;
 using sample_win_devicedriver_inf_install.Models.ValueObjects;
 using sample_win_devicedriver_inf_install.Models;
 
-namespace sample_win_devicedriver_inf_install.Core.Models;
+namespace sample_win_devicedriver_inf_install.Models;
 
 /// <summary>
-/// インストール結果モデル（コア層 - FR-014準拠）
-/// ローカライズされたメッセージを含まない技術的インストール結果データを格納します
+/// インストール結果モデル（宣言的インストール専用）
 /// </summary>
 public class InstallationResult
 {
@@ -15,6 +13,11 @@ public class InstallationResult
     /// セッションID
     /// </summary>
     public required string SessionId { get; set; }
+
+    /// <summary>
+    /// 相関ID（CLIで使用）
+    /// </summary>
+    public string CorrelationId => SessionId;
 
     /// <summary>
     /// インストールステータス
@@ -32,19 +35,34 @@ public class InstallationResult
     public ApiErrorInfo? ErrorInfo { get; set; }
 
     /// <summary>
+    /// エラー一覧（CLI用）
+    /// </summary>
+    public IEnumerable<ApiErrorInfo> Errors => ErrorInfo.HasValue ? new[] { ErrorInfo.Value } : Array.Empty<ApiErrorInfo>();
+
+    /// <summary>
     /// インストールされたドライバパッケージ
     /// </summary>
     public DriverPackage? InstalledPackage { get; set; }
 
     /// <summary>
-    /// 影響を受けたデバイス一覧
+    /// INFファイルのパス（CLI用）
     /// </summary>
-    public List<DeviceInstance> AffectedDevices { get; set; } = new();
+    public string? InfPath => InstalledPackage?.InfPath;
+
+    /// <summary>
+    /// セクション名（CLI用）
+    /// </summary>
+    public string? SectionName { get; set; }
 
     /// <summary>
     /// 実行時間
     /// </summary>
     public TimeSpan ExecutionTime { get; set; }
+
+    /// <summary>
+    /// 実行時間（CLI用）
+    /// </summary>
+    public TimeSpan Duration => ExecutionTime;
 
     /// <summary>
     /// インストール開始時刻
@@ -57,7 +75,7 @@ public class InstallationResult
     public DateTime? EndTime { get; set; }
 
     /// <summary>
-    /// 技術的メッセージ（FR-014によりログ用英語のみ）
+    /// 技術的メッセージ（ログ用英語のみ）
     /// </summary>
     public string? TechnicalMessage { get; set; }
 
@@ -71,14 +89,14 @@ public class InstallationResult
     /// </summary>
     /// <param name="sessionId">セッションID</param>
     /// <param name="installedPackage">インストールされたパッケージ</param>
-    /// <param name="affectedDevices">影響を受けたデバイス</param>
+    /// <param name="sectionName">セクション名</param>
     /// <param name="executionTime">実行時間</param>
     /// <param name="technicalMessage">技術的メッセージ</param>
     /// <returns>成功した InstallationResult</returns>
     public static InstallationResult Success(
         string sessionId,
         DriverPackage installedPackage,
-        List<DeviceInstance>? affectedDevices = null,
+        string? sectionName = null,
         TimeSpan? executionTime = null,
         string? technicalMessage = null)
     {
@@ -87,7 +105,7 @@ public class InstallationResult
             SessionId = sessionId,
             Status = InstallationStatus.Completed,
             InstalledPackage = installedPackage,
-            AffectedDevices = affectedDevices ?? new(),
+            SectionName = sectionName,
             ExecutionTime = executionTime ?? TimeSpan.Zero,
             StartTime = DateTime.UtcNow.Subtract(executionTime ?? TimeSpan.Zero),
             EndTime = DateTime.UtcNow,
@@ -100,12 +118,14 @@ public class InstallationResult
     /// </summary>
     /// <param name="sessionId">セッションID</param>
     /// <param name="errorInfo">エラー情報</param>
+    /// <param name="sectionName">セクション名</param>
     /// <param name="executionTime">実行時間</param>
     /// <param name="technicalMessage">技術的メッセージ</param>
     /// <returns>失敗した InstallationResult</returns>
     public static InstallationResult Failure(
         string sessionId,
         ApiErrorInfo errorInfo,
+        string? sectionName = null,
         TimeSpan? executionTime = null,
         string? technicalMessage = null)
     {
@@ -114,6 +134,7 @@ public class InstallationResult
             SessionId = sessionId,
             Status = InstallationStatus.Failed,
             ErrorInfo = errorInfo,
+            SectionName = sectionName,
             ExecutionTime = executionTime ?? TimeSpan.Zero,
             StartTime = DateTime.UtcNow.Subtract(executionTime ?? TimeSpan.Zero),
             EndTime = DateTime.UtcNow,
@@ -125,11 +146,13 @@ public class InstallationResult
     /// キャンセルされたインストール結果を作成します
     /// </summary>
     /// <param name="sessionId">セッションID</param>
+    /// <param name="sectionName">セクション名</param>
     /// <param name="executionTime">実行時間</param>
     /// <param name="technicalMessage">技術的メッセージ</param>
     /// <returns>キャンセルされた InstallationResult</returns>
     public static InstallationResult Cancelled(
         string sessionId,
+        string? sectionName = null,
         TimeSpan? executionTime = null,
         string? technicalMessage = null)
     {
@@ -137,6 +160,7 @@ public class InstallationResult
         {
             SessionId = sessionId,
             Status = InstallationStatus.Cancelled,
+            SectionName = sectionName,
             ExecutionTime = executionTime ?? TimeSpan.Zero,
             StartTime = DateTime.UtcNow.Subtract(executionTime ?? TimeSpan.Zero),
             EndTime = DateTime.UtcNow,

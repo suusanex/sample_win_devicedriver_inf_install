@@ -1,9 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace sample_win_devicedriver_inf_install.Core.Models;
+namespace sample_win_devicedriver_inf_install.Models;
 
 /// <summary>
-/// ドライバパッケージ情報モデル（コア層 - FR-014準拠）
+/// ドライバパッケージ情報モデル（宣言的インストール専用）
 /// </summary>
 public class DriverPackage
 {
@@ -34,34 +34,9 @@ public class DriverPackage
     public string? Provider { get; set; }
 
     /// <summary>
-    /// ハードウェアID一覧
-    /// </summary>
-    public List<string> HardwareIds { get; set; } = new();
-
-    /// <summary>
-    /// 互換ID一覧
-    /// </summary>
-    public List<string> CompatibleIds { get; set; } = new();
-
-    /// <summary>
-    /// デバイスクラス
-    /// </summary>
-    public string? DeviceClass { get; set; }
-
-    /// <summary>
-    /// デバイスクラスGUID
-    /// </summary>
-    public string? DeviceClassGuid { get; set; }
-
-    /// <summary>
     /// 作成タイムスタンプ
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    /// <summary>
-    /// 更新タイムスタンプ
-    /// </summary>
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
     /// INFファイルが存在するかを検証します
@@ -94,11 +69,11 @@ public class DriverPackage
     }
 
     /// <summary>
-    /// ログ用の技術的説明を取得します（FR-014により英語）
+    /// ログ用の技術的説明を取得します
     /// </summary>
     /// <returns>技術的説明</returns>
     public string GetTechnicalDescription()
     {
-        return $"Package ID: {Id}, INF: {InfPath}, Provider: {Provider}, Version: {Version}, Class: {DeviceClass}";
+        return $"Package ID: {Id}, INF: {InfPath}, Provider: {Provider}, Version: {Version}";
     }
 }

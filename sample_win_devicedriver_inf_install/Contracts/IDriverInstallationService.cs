@@ -1,42 +1,24 @@
-﻿using sample_win_devicedriver_inf_install.Core.Models;
-using sample_win_devicedriver_inf_install.Models;
+﻿using sample_win_devicedriver_inf_install.Models;
 
-namespace sample_win_devicedriver_inf_install.Core.Contracts;
+namespace sample_win_devicedriver_inf_install.Contracts;
 
 /// <summary>
-/// ドライバインストールサービスインターフェース（コア層 - FR-014準拠）
-/// UI関連の処理を含まない、コアなドライバインストール操作を提供します
+/// ドライバインストールサービスインターフェース（宣言的インストール専用）
 /// </summary>
 public interface IDriverInstallationService
 {
     /// <summary>
-    /// ドライバを非同期でインストールします
+    /// INFファイルに従った包括的な宣言的インストールを実行します
     /// </summary>
-    /// <param name="driverPackage">インストールするドライバパッケージ</param>
+    /// <param name="infPath">INFファイルパス</param>
+    /// <param name="sectionName">インストールセクション名（デフォルト: "DefaultInstall"）</param>
+    /// <param name="flags">インストールフラグ</param>
     /// <param name="cancellationToken">キャンセレーショントークン</param>
     /// <returns>インストール結果</returns>
-    Task<InstallationResult> InstallDriverAsync(
-        DriverPackage driverPackage,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// ドライバを非同期でアンインストールします
-    /// </summary>
-    /// <param name="driverPackage">アンインストールするドライバパッケージ</param>
-    /// <param name="cancellationToken">キャンセレーショントークン</param>
-    /// <returns>アンインストール結果</returns>
-    Task<InstallationResult> UninstallDriverAsync(
-        DriverPackage driverPackage,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// ドライバの状態を非同期で取得します
-    /// </summary>
-    /// <param name="driverPackage">確認するドライバパッケージ</param>
-    /// <param name="cancellationToken">キャンセレーショントークン</param>
-    /// <returns>ドライバに関連するデバイス一覧</returns>
-    Task<List<DeviceInstance>> GetDriverStatusAsync(
-        DriverPackage driverPackage,
+    Task<InstallationResult> InstallFromInfAsync(
+        string infPath,
+        string sectionName = "DefaultInstall",
+        uint flags = 0,
         CancellationToken cancellationToken = default);
 
     /// <summary>

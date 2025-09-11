@@ -1,10 +1,10 @@
 ﻿using sample_win_devicedriver_inf_install.Enums;
-using sample_win_devicedriver_inf_install.Core.Models;
+using sample_win_devicedriver_inf_install.Models;
 
 namespace sample_win_devicedriver_inf_install.Models;
 
 /// <summary>
-/// インストールセッション情報を表すモデル
+/// インストールセッション情報を表すモデル（宣言的インストール専用）
 /// </summary>
 public class InstallationSession
 {
@@ -47,11 +47,6 @@ public class InstallationSession
     /// エラー情報（失敗時）
     /// </summary>
     public string? ErrorMessage { get; set; }
-
-    /// <summary>
-    /// 詳細ログ
-    /// </summary>
-    public List<string> LogMessages { get; set; } = new();
 
     /// <summary>
     /// キャンセレーショントークン
@@ -98,11 +93,6 @@ public class InstallationSession
     {
         ProgressPercentage = Math.Clamp(percentage, 0, 100);
         CurrentStep = step;
-        
-        if (!string.IsNullOrEmpty(step))
-        {
-            LogMessages.Add($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} - {step} ({percentage}%)");
-        }
     }
 
     /// <summary>
@@ -119,11 +109,6 @@ public class InstallationSession
         if (status == InstallationStatus.Completed)
         {
             ProgressPercentage = 100;
-            LogMessages.Add($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} - インストールが正常に完了しました");
-        }
-        else if (!string.IsNullOrEmpty(errorMessage))
-        {
-            LogMessages.Add($"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} - エラー: {errorMessage}");
         }
     }
 }
