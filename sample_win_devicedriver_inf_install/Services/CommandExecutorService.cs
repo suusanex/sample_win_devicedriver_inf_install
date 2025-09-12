@@ -82,6 +82,11 @@ public class CommandExecutorService : IHostedService
                 Console.WriteLine(_localization.GetMessage("App_Error", ex.Message));
                 _exitCode = 1;
             }
+            finally
+            {
+                // コマンド処理が完了したのでアプリケーションを終了させる
+                _hostLifetime.StopApplication();
+            }
         }, cancellationToken);
 
         return Task.CompletedTask;

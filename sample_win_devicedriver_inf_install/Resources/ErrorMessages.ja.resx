@@ -1,5 +1,60 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" type="System.Resources.ResXFileRef, System.Windows.Forms">
+        <value>C:\WINDOWS\system32\shell32.dll;#121</value>
+    </data>
+    <data name="Icon1" type="System.Resources.ResXFileRef, System.Windows.Forms">
+        <value>C:\WINDOWS\system32\shell32.dll;#121</value>
+    </data>
+    
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name/value pair (implemented as 
+    System.Collections.DictionaryEntry objects).
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
@@ -29,9 +84,9 @@
                 <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
               </xsd:sequence>
               <xsd:attribute name="name" use="required" type="xsd:string" />
-              <xsd:attribute name="xml:space" type="xsd:string" />
               <xsd:attribute name="type" type="xsd:string" />
               <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
             </xsd:complexType>
           </xsd:element>
           <xsd:element name="resheader">
@@ -246,5 +301,97 @@
   </data>
   <data name="Troubleshooting_CheckSection" xml:space="preserve">
     <value>INFファイルに指定されたセクションが存在することを確認してください。</value>
+  </data>
+
+  <!-- SetupAPI エラー -->
+  <data name="SetupApiError_FileNotFound" xml:space="preserve">
+    <value>指定されたファイルが見つかりません</value>
+  </data>
+  <data name="SetupApiError_InvalidHandle" xml:space="preserve">
+    <value>無効なハンドルです</value>
+  </data>
+  <data name="SetupApiError_ElementNotFound" xml:space="preserve">
+    <value>要素が見つかりません</value>
+  </data>
+  <data name="SetupApiError_InvalidParameter" xml:space="preserve">
+    <value>パラメータが無効です</value>
+  </data>
+  <data name="SetupApiError_AccessDenied" xml:space="preserve">
+    <value>アクセスが拒否されました</value>
+  </data>
+  <data name="SetupApiError_NotEnoughMemory" xml:space="preserve">
+    <value>メモリが不足しています</value>
+  </data>
+  <data name="SetupApiError_DiskFull" xml:space="preserve">
+    <value>ディスクの容量が不足しています</value>
+  </data>
+  <data name="SetupApiError_SharingViolation" xml:space="preserve">
+    <value>ファイルが他のプロセスによって使用されています</value>
+  </data>
+  <data name="SetupApiError_WriteProtect" xml:space="preserve">
+    <value>書き込み保護されたファイルまたはディスクです</value>
+  </data>
+  <data name="SetupApiError_PathNotFound" xml:space="preserve">
+    <value>指定されたパスが見つかりません</value>
+  </data>
+  <!-- ファイル操作関連エラー（追加） -->
+  <data name="FileOperationError_QueueCreationFailed" xml:space="preserve">
+    <value>ファイル操作キューの作成に失敗しました</value>
+  </data>
+  <data name="FileOperationError_QueueCommitFailed" xml:space="preserve">
+    <value>ファイル操作の実行に失敗しました</value>
+  </data>
+  <data name="FileOperationError_InsufficientDiskSpace" xml:space="preserve">
+    <value>ディスクの空き容量が不足しています</value>
+  </data>
+  <data name="FileOperationError_FileInUse" xml:space="preserve">
+    <value>ファイルが使用中のため操作できません</value>
+  </data>
+  <data name="FileOperationError_SourceFileNotFound" xml:space="preserve">
+    <value>コピー元ファイルが見つかりません</value>
+  </data>
+  <data name="FileOperationError_DestinationPathInvalid" xml:space="preserve">
+    <value>コピー先のパスが無効です</value>
+  </data>
+  <!-- 一般エラー -->
+  <data name="GeneralError_UnknownError" xml:space="preserve">
+    <value>不明なエラーが発生しました</value>
+  </data>
+  <data name="GeneralError_OperationCancelled" xml:space="preserve">
+    <value>操作がキャンセルされました</value>
+  </data>
+  <data name="GeneralError_Timeout" xml:space="preserve">
+    <value>操作がタイムアウトしました</value>
+  </data>
+  <data name="GeneralError_InvalidInfFile" xml:space="preserve">
+    <value>INF ファイルが無効です</value>
+  </data>
+  <data name="GeneralError_SectionNotFound" xml:space="preserve">
+    <value>指定されたセクションが見つかりません</value>
+  </data>
+  <data name="GeneralError_InsufficientPrivileges" xml:space="preserve">
+    <value>この操作には管理者権限が必要です</value>
+  </data>
+  <!-- 3段階実行関連メッセージ（追加） -->
+  <data name="InstallationPhase_FileOperations" xml:space="preserve">
+    <value>ファイル操作段階</value>
+  </data>
+  <data name="InstallationPhase_RegistryOperations" xml:space="preserve">
+    <value>レジストリ操作段階</value>
+  </data>
+  <data name="InstallationPhase_ServiceOperations" xml:space="preserve">
+    <value>サービス登録段階</value>
+  </data>
+  <data name="InstallationPhase_FileOperationsCompleted" xml:space="preserve">
+    <value>ファイル操作が完了しました</value>
+  </data>
+  <data name="InstallationPhase_RegistryOperationsCompleted" xml:space="preserve">
+    <value>レジストリ操作が完了しました</value>
+  </data>
+  <data name="InstallationPhase_ServiceOperationsCompleted" xml:space="preserve">
+    <value>サービス登録が完了しました</value>
+  </data>
+  <data name="InstallationPhase_ThreePhaseCompleted" xml:space="preserve">
+    <value>3段階インストールが完了しました</value>
   </data>
 </root>

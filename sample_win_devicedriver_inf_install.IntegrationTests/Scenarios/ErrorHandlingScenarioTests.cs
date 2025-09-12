@@ -97,10 +97,10 @@ public class ErrorHandlingScenarioTests : IClassFixture<TestEnvironmentFixture>
         result.ErrorInfo.Should().NotBeNull();
         result.SectionName.Should().Be(nonExistentSection);
 
-        // セクション名が含まれるエラーログ（APIカテゴリ）を期待
+        // 3段階実行では、存在しないセクションエラーはFileOperationカテゴリでログされる
         result.LogEntries.Should().Contain(log => 
             log.Level == sample_win_devicedriver_inf_install.Enums.LogLevel.Error &&
-            log.Category == "API");
+            log.Category == "FileOperation");
     }
 
     /// <summary>

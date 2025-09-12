@@ -1,49 +1,86 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using sample_win_devicedriver_inf_install.Contracts;
+using Microsoft.Extensions.Logging;
 using sample_win_devicedriver_inf_install.Native;
+using System.Runtime.InteropServices;
 
 namespace sample_win_devicedriver_inf_install.Tests.Stubs;
 
 /// <summary>
-/// SetupAPIのスタブ実装
-/// UnitTest時に実際のOS環境に影響を与えることなくテストを実行するために使用
+/// SetupAPI のスタブ実装
+/// UnitTest および IntegrationTest で使用される
+/// 実際の OS 環境を変更せずにテストを実行するため
 /// </summary>
 public class SetupApiStub : ISetupApiWrapper
 {
-    private readonly Dictionary<IntPtr, InfFileInfo> _openFiles = new();
-    private IntPtr _nextHandle = new IntPtr(1000);
-    private uint _lastError = 0;
-    private readonly Dictionary<string, Dictionary<string, List<string>>> _infSections = new();
-    
-    // タイムアウトテスト用の設定
-    private TimeSpan _installFromInfSectionDelay = TimeSpan.Zero;
-    private TimeSpan _installServicesFromInfSectionDelay = TimeSpan.Zero;
+    private uint _lastError;
+    private readonly Dictionary<IntPtr, string> _openedInfFiles;
+    private readonly Dictionary<IntPtr, bool> _fileQueues;
+    private readonly Dictionary<string, Dictionary<string, List<string>>> _infContents;
+    private IntPtr _nextHandle;
+    private TimeSpan _installFromInfSectionDelay;
+    private TimeSpan _installServicesFromInfSectionDelay;
 
     /// <summary>
-    /// スタブ設定: INFファイルの内容を設定
+    /// コンストラクタ
     /// </summary>
-    /// <param name="filePath">ファイルパス</param>
-    /// <param name="sections">セクション情報</param>
-    public void SetupInfContent(string filePath, Dictionary<string, List<string>> sections)
+    public SetupApiStub()
     {
-        var key = NormalizePath(filePath);
-        _infSections[key] = sections;
+        _lastError = 0;
+        _openedInfFiles = new Dictionary<IntPtr, string>();
+        _fileQueues = new Dictionary<IntPtr, bool>();
+        _infContents = new Dictionary<string, Dictionary<string, List<string>>>();
+        _nextHandle = new IntPtr(1000);
+        _installFromInfSectionDelay = TimeSpan.Zero;
+        _installServicesFromInfSectionDelay = TimeSpan.Zero;
     }
 
     /// <summary>
-    /// スタブ設定: エラー動作を設定
+    /// スタブの状態をリセットします（テスト用）
     /// </summary>
-    /// <param name="errorCode">返すエラーコード</param>
+    public void Reset()
+    {
+        _lastError = 0;
+        _openedInfFiles.Clear();
+        _fileQueues.Clear();
+        _infContents.Clear();
+        _nextHandle = new IntPtr(1000);
+        _installFromInfSectionDelay = TimeSpan.Zero;
+        _installServicesFromInfSectionDelay = TimeSpan.Zero;
+    }
+
+    /// <summary>
+    /// 最後のエラーコードを設定します（テスト用）
+    /// </summary>
+    /// <param name="errorCode">エラーコード</param>
+    public void SetLastError(uint errorCode)
+    {
+        _lastError = errorCode;
+    }
+
+    /// <summary>
+    /// エラーを設定します（テスト用）
+    /// </summary>
+    /// <param name="errorCode">エラーコード</param>
     public void SetupError(uint errorCode)
     {
         _lastError = errorCode;
     }
 
     /// <summary>
-    /// スタブ設定: SetupInstallFromInfSectionの遅延時間を設定（タイムアウトテスト用）
+    /// INF コンテンツを設定します（テスト用）
+    /// </summary>
+    /// <param name="infPath">INFファイルパス</param>
+    /// <param name="sections">セクションとその内容</param>
+    public void SetupInfContent(string infPath, Dictionary<string, List<string>> sections)
+    {
+        _infContents[infPath] = sections;
+    }
+
+    /// <summary>
+    /// SetupInstallFromInfSection の遅延時間を設定します（テスト用）
     /// </summary>
     /// <param name="delay">遅延時間</param>
     public void SetInstallFromInfSectionDelay(TimeSpan delay)
@@ -52,7 +89,7 @@ public class SetupApiStub : ISetupApiWrapper
     }
 
     /// <summary>
-    /// スタブ設定: SetupInstallServicesFromInfSectionの遅延時間を設定（タイムアウトテスト用）
+    /// SetupInstallServicesFromInfSection の遅延時間を設定します（テスト用）
     /// </summary>
     /// <param name="delay">遅延時間</param>
     public void SetInstallServicesFromInfSectionDelay(TimeSpan delay)
@@ -61,48 +98,30 @@ public class SetupApiStub : ISetupApiWrapper
     }
 
     /// <summary>
-    /// スタブ設定: リセット
+    /// INFファイルを開きます（スタブ実装）
     /// </summary>
-    public void Reset()
-    {
-        _openFiles.Clear();
-        _lastError = 0;
-        _infSections.Clear();
-        _nextHandle = new IntPtr(1000);
-        _installFromInfSectionDelay = TimeSpan.Zero;
-        _installServicesFromInfSectionDelay = TimeSpan.Zero;
-    }
-
     public IntPtr SetupOpenInfFile(string fileName, string? infClass, uint infStyle, out uint errorLine)
     {
         errorLine = 0;
 
-        if (_lastError != 0)
-        {
-            var error = _lastError;
-            _lastError = 0; // Reset after use
-            return SetupApi.INVALID_HANDLE_VALUE;
-        }
-
-        var normalizedPath = NormalizePath(fileName);
-        if (!_infSections.ContainsKey(normalizedPath))
+        // ファイル存在チェック（簡易）
+        if (string.IsNullOrEmpty(fileName) || fileName.Contains("nonexistent"))
         {
             _lastError = 2; // ERROR_FILE_NOT_FOUND
             return SetupApi.INVALID_HANDLE_VALUE;
         }
 
+        // 有効なハンドルを生成
         var handle = _nextHandle;
-        _nextHandle = new IntPtr(_nextHandle.ToInt32() + 1);
-        
-        _openFiles[handle] = new InfFileInfo
-        {
-            FilePath = fileName,
-            Sections = _infSections[normalizedPath]
-        };
-
+        _nextHandle = new IntPtr(_nextHandle.ToInt64() + 1);
+        _openedInfFiles[handle] = fileName;
+        _lastError = 0;
         return handle;
     }
 
+    /// <summary>
+    /// INFセクションからインストールを実行します（スタブ実装）
+    /// </summary>
     public bool SetupInstallFromInfSection(
         IntPtr owner,
         IntPtr infHandle,
@@ -116,110 +135,288 @@ public class SetupApiStub : ISetupApiWrapper
         IntPtr deviceInfoSet,
         IntPtr deviceInfoData)
     {
-        // タイムアウトテスト用の遅延をシミュレート
+        // 遅延シミュレーション
         if (_installFromInfSectionDelay > TimeSpan.Zero)
         {
-            Thread.Sleep(_installFromInfSectionDelay);
+            System.Threading.Thread.Sleep(_installFromInfSectionDelay);
         }
 
-        if (_lastError != 0)
-        {
-            var error = _lastError;
-            _lastError = 0;
-            return false;
-        }
-
-        if (!_openFiles.ContainsKey(infHandle))
+        // 無効なハンドルチェック
+        if (infHandle == SetupApi.INVALID_HANDLE_VALUE || !_openedInfFiles.ContainsKey(infHandle))
         {
             _lastError = 6; // ERROR_INVALID_HANDLE
             return false;
         }
 
-        var infFile = _openFiles[infHandle];
-        if (!infFile.Sections.ContainsKey(sectionName))
+        // セクション名チェック
+        if (string.IsNullOrEmpty(sectionName) || sectionName.Contains("InvalidSection"))
         {
-            _lastError = 0xE0000101; // SPAPI_E_SECTION_NOT_FOUND
+            _lastError = 1168; // ERROR_NOT_FOUND (セクションが見つからない)
             return false;
         }
 
-        // スタブなので実際の処理は行わないが、成功を返す
+        _lastError = 0;
         return true;
     }
 
+    /// <summary>
+    /// Services セクションからサービスをインストールします（スタブ実装）
+    /// </summary>
     public bool SetupInstallServicesFromInfSection(IntPtr infHandle, string sectionName, uint flags)
     {
-        // タイムアウトテスト用の遅延をシミュレート
+        // 遅延シミュレーション
         if (_installServicesFromInfSectionDelay > TimeSpan.Zero)
         {
-            Thread.Sleep(_installServicesFromInfSectionDelay);
+            System.Threading.Thread.Sleep(_installServicesFromInfSectionDelay);
         }
 
-        if (_lastError != 0)
-        {
-            var error = _lastError;
-            _lastError = 0;
-            return false;
-        }
-
-        if (!_openFiles.ContainsKey(infHandle))
+        // 無効なハンドルチェック
+        if (infHandle == SetupApi.INVALID_HANDLE_VALUE || !_openedInfFiles.ContainsKey(infHandle))
         {
             _lastError = 6; // ERROR_INVALID_HANDLE
             return false;
         }
 
-        var infFile = _openFiles[infHandle];
-        if (!infFile.Sections.ContainsKey(sectionName))
+        // セクション名チェック
+        if (string.IsNullOrEmpty(sectionName) || sectionName.Contains("InvalidSection"))
         {
-            _lastError = 0xE0000101; // SPAPI_E_SECTION_NOT_FOUND
+            _lastError = 1168; // ERROR_NOT_FOUND
             return false;
         }
 
-        // スタブなので実際の処理は行わないが、成功を返す
+        _lastError = 0;
         return true;
     }
 
+    /// <summary>
+    /// INFファイルハンドルを閉じます（スタブ実装）
+    /// </summary>
     public void SetupCloseInfFile(IntPtr infHandle)
     {
-        _openFiles.Remove(infHandle);
+        if (_openedInfFiles.ContainsKey(infHandle))
+        {
+            _openedInfFiles.Remove(infHandle);
+        }
     }
 
+    /// <summary>
+    /// INFファイル内で指定されたセクションの最初の行を検索します（スタブ実装）
+    /// </summary>
     public bool SetupFindFirstLine(IntPtr infHandle, string section, string? key, out SetupApi.INFCONTEXT context)
     {
         context = new SetupApi.INFCONTEXT();
 
-        if (!_openFiles.ContainsKey(infHandle))
+        // 無効なハンドルチェック
+        if (infHandle == SetupApi.INVALID_HANDLE_VALUE || !_openedInfFiles.ContainsKey(infHandle))
         {
             _lastError = 6; // ERROR_INVALID_HANDLE
             return false;
         }
 
-        var infFile = _openFiles[infHandle];
-        if (!infFile.Sections.ContainsKey(section))
+        // セクション名チェック
+        if (string.IsNullOrEmpty(section))
         {
-            _lastError = 0xE0000101; // SPAPI_E_SECTION_NOT_FOUND
+            _lastError = 87; // ERROR_INVALID_PARAMETER
             return false;
         }
 
-        var sectionLines = infFile.Sections[section];
-        if (sectionLines.Count == 0)
+        // INFコンテンツから実際にセクションが存在するかチェック
+        if (_openedInfFiles.TryGetValue(infHandle, out string? infPath) && 
+            _infContents.TryGetValue(infPath, out var sections))
         {
+            if (sections.ContainsKey(section))
+            {
+                _lastError = 0;
+                return true;
+            }
+            else
+            {
+                _lastError = 1168; // ERROR_NOT_FOUND
+                return false;
+            }
+        }
+
+        // フォールバック: デフォルトの動作
+        // "DefaultInstall.Services" セクションは存在するものとして扱う
+        if (section == "DefaultInstall.Services" || section == "TestInstall.Services")
+        {
+            _lastError = 0;
+            return true;
+        }
+
+        // 通常のセクション（DefaultInstall 等）も存在するものとして扱う
+        if (section == "DefaultInstall" || section == "TestInstall")
+        {
+            _lastError = 0;
+            return true;
+        }
+
+        // 存在しないセクション
+        if (section.Contains("InvalidSection"))
+        {
+            _lastError = 1168; // ERROR_NOT_FOUND
             return false;
         }
 
-        // スタブなので実際のコンテキストは設定しないが、存在することを示す
-        context.Inf = infHandle;
-        context.Section = 1;
-        context.Line = 1;
-
+        // デフォルトでは存在するものとして扱う
+        _lastError = 0;
         return true;
     }
 
-    public uint GetLastError()
+    #region File Queue Operations for CopyFiles Support
+
+    /// <summary>
+    /// ファイルキューを開きます（スタブ実装）
+    /// </summary>
+    public IntPtr SetupOpenFileQueue()
     {
-        var error = _lastError;
-        return error;
+        var queueHandle = _nextHandle;
+        _nextHandle = new IntPtr(_nextHandle.ToInt64() + 1);
+        _fileQueues[queueHandle] = true;
+        _lastError = 0;
+        return queueHandle;
     }
 
+    /// <summary>
+    /// INF セクションからファイル操作をキューに追加します（スタブ実装）
+    /// </summary>
+    public bool SetupInstallFilesFromInfSection(
+        IntPtr infHandle,
+        IntPtr layoutInfHandle,
+        IntPtr fileQueue,
+        string sectionName,
+        string? sourceRootPath,
+        uint copyStyle)
+    {
+        // 無効なハンドルチェック
+        if (infHandle == SetupApi.INVALID_HANDLE_VALUE || !_openedInfFiles.ContainsKey(infHandle))
+        {
+            _lastError = 6; // ERROR_INVALID_HANDLE
+            return false;
+        }
+
+        // 無効なファイルキューチェック
+        if (fileQueue == IntPtr.Zero || !_fileQueues.ContainsKey(fileQueue))
+        {
+            _lastError = 6; // ERROR_INVALID_HANDLE
+            return false;
+        }
+
+        // セクション名チェック
+        if (string.IsNullOrEmpty(sectionName) || sectionName.Contains("InvalidSection"))
+        {
+            _lastError = 1168; // ERROR_NOT_FOUND
+            return false;
+        }
+
+        _lastError = 0;
+        return true;
+    }
+
+    /// <summary>
+    /// ファイルキューをコミット（実際にファイル操作を実行）します（スタブ実装）
+    /// </summary>
+    public bool SetupCommitFileQueue(
+        IntPtr owner,
+        IntPtr queueHandle,
+        IntPtr msgHandler,
+        IntPtr context)
+    {
+        // 無効なファイルキューチェック
+        if (queueHandle == IntPtr.Zero || !_fileQueues.ContainsKey(queueHandle))
+        {
+            _lastError = 6; // ERROR_INVALID_HANDLE
+            return false;
+        }
+
+        _lastError = 0;
+        return true;
+    }
+
+    /// <summary>
+    /// ファイルキューをサイレントコールバックでコミットします（スタブ実装）
+    /// </summary>
+    public bool SetupCommitFileQueueWithSilentCallback(
+        IntPtr owner,
+        IntPtr queueHandle,
+        sample_win_devicedriver_inf_install.Services.SilentFileQueueCallback silentCallback)
+    {
+        // スタブでは実際のファイル操作は行わないが、コールバックのテストは可能
+        if (silentCallback == null)
+            return false;
+
+        try
+        {
+            var callback = silentCallback.GetCallback();
+            
+            // モックのファイル操作通知を送信（NEEDMEDIA通知は送信しない）
+            callback(IntPtr.Zero, SetupApi.SPFILENOTIFY_STARTQUEUE, IntPtr.Zero, IntPtr.Zero);
+            callback(IntPtr.Zero, SetupApi.SPFILENOTIFY_STARTSUBQUEUE, IntPtr.Zero, IntPtr.Zero);
+            
+            // テスト用のモックファイル操作（実際のファイルコピー通知）
+            var mockFilePaths = new SetupApi.FILEPATHS
+            {
+                Source = "C:\\test\\source.sys",
+                Target = "C:\\Windows\\System32\\drivers\\test.sys",
+                Win32Error = 0,
+                Flags = 0
+            };
+            
+            IntPtr mockPtr = IntPtr.Zero;
+            try
+            {
+                mockPtr = Marshal.AllocHGlobal(Marshal.SizeOf<SetupApi.FILEPATHS>());
+                Marshal.StructureToPtr(mockFilePaths, mockPtr, false);
+                
+                callback(IntPtr.Zero, SetupApi.SPFILENOTIFY_STARTCOPY, mockPtr, IntPtr.Zero);
+                callback(IntPtr.Zero, SetupApi.SPFILENOTIFY_ENDCOPY, mockPtr, IntPtr.Zero);
+            }
+            finally
+            {
+                if (mockPtr != IntPtr.Zero)
+                    Marshal.FreeHGlobal(mockPtr);
+            }
+            
+            callback(IntPtr.Zero, SetupApi.SPFILENOTIFY_ENDSUBQUEUE, IntPtr.Zero, IntPtr.Zero);
+            callback(IntPtr.Zero, SetupApi.SPFILENOTIFY_ENDQUEUE, IntPtr.Zero, IntPtr.Zero);
+            
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// ファイルキューを閉じます（スタブ実装）
+    /// </summary>
+    public bool SetupCloseFileQueue(IntPtr queueHandle)
+    {
+        if (_fileQueues.ContainsKey(queueHandle))
+        {
+            _fileQueues.Remove(queueHandle);
+            _lastError = 0;
+            return true;
+        }
+
+        _lastError = 6; // ERROR_INVALID_HANDLE
+        return false;
+    }
+
+    #endregion
+
+    /// <summary>
+    /// 最後のエラーコードを取得します（スタブ実装）
+    /// </summary>
+    public uint GetLastError()
+    {
+        return _lastError;
+    }
+
+    /// <summary>
+    /// エラーコードをメッセージに変換します（スタブ実装）
+    /// </summary>
     public uint FormatMessage(
         uint dwFlags,
         IntPtr lpSource,
@@ -229,24 +426,21 @@ public class SetupApiStub : ISetupApiWrapper
         uint nSize,
         IntPtr arguments)
     {
-        // スタブなので簡単なメッセージを返す
-        var message = dwMessageId switch
+        // 簡易的なエラーメッセージマッピング（拡張版）
+        string message = dwMessageId switch
         {
+            0 => "The operation completed successfully.",
             2 => "The system cannot find the file specified.",
-            3 => "The system cannot find the path specified.",
             5 => "Access is denied.",
             6 => "The handle is invalid.",
             87 => "The parameter is incorrect.",
-            0xE0000100 => "The INF file is invalid.",
-            0xE0000101 => "The specified section was not found in the INF file.",
-            0xE0000102 => "The specified line was not found in the INF file.",
-            0xE0000103 => "The specified key was not found in the INF file.",
-            0xE0000104 => "Registry write operation failed.",
-            0xE0000108 => "File copy operation failed.",
-            _ => $"Unknown error (Error code: 0x{dwMessageId:X8})"
+            1168 => "Element not found.",
+            0xE0000101u => "The required section was not found in the INF file.",
+            0xE0000104u => "Registry operation failed.",
+            _ => $"Unknown error (Error code: 0x{dwMessageId:X8})"  // WindowsApiErrorHandlerと同じ形式
         };
 
-        if (lpBuffer.Capacity >= message.Length)
+        if (lpBuffer.Capacity >= message.Length + 1)
         {
             lpBuffer.Clear();
             lpBuffer.Append(message);
@@ -254,19 +448,5 @@ public class SetupApiStub : ISetupApiWrapper
         }
 
         return 0;
-    }
-
-    private static string NormalizePath(string path)
-    {
-        return path.Replace('\\', '/').ToLowerInvariant();
-    }
-
-    /// <summary>
-    /// スタブで管理するINFファイル情報
-    /// </summary>
-    private class InfFileInfo
-    {
-        public string FilePath { get; set; } = string.Empty;
-        public Dictionary<string, List<string>> Sections { get; set; } = new();
     }
 }

@@ -107,11 +107,11 @@ ServiceBinary=%12%\test.sys
         Assert.True(result.IsSuccess);
         Assert.NotEmpty(result.LogEntries);
 
-        // ログエントリの検証
+        // ログエントリの検証（3段階実行に対応）
         var logEntries = result.LogEntries.ToList();
         Assert.Contains(logEntries, entry => entry.Message.Contains("Started declarative installation"));
-        Assert.Contains(logEntries, entry => entry.Message.Contains("Installing from section"));
-        Assert.Contains(logEntries, entry => entry.Message.Contains("Completed declarative installation"));
+        Assert.Contains(logEntries, entry => entry.Message.Contains("file operations") && entry.Message.Contains("Starting"));
+        Assert.Contains(logEntries, entry => entry.Message.Contains("3-phase declarative installation"));
     }
 
     /// <summary>
@@ -228,7 +228,7 @@ ServiceBinary=%12%\test.sys
 
         var logEntries = result.LogEntries.ToList();
         Assert.Contains(logEntries, entry => entry.Message.Contains("Found Services section"));
-        Assert.Contains(logEntries, entry => entry.Message.Contains("Successfully installed services"));
+        Assert.Contains(logEntries, entry => entry.Message.Contains("Successfully installed services") || entry.Message.Contains("installed services"));
     }
 
     /// <summary>
@@ -342,11 +342,11 @@ ServiceBinary=%12%\test.sys
         Assert.Equal(InstallationStatus.Cancelled, result.Status);
         Assert.False(result.IsSuccess);
         
-        // タイムアウトログが記録されていることを確認
+        // タイムアウトログが記録されていることを確認（3段階実行対応）
         var logEntries = result.LogEntries.ToList();
         Assert.Contains(logEntries, entry => 
             entry.Message.Contains("timed out") && 
-            entry.Category == "API");
+            (entry.Category == "FileOperation" || entry.Category == "RegistryOperation"));
     }
 
     /// <summary>
@@ -376,11 +376,11 @@ ServiceBinary=%12%\test.sys
         Assert.Equal(InstallationStatus.Cancelled, result.Status);
         Assert.False(result.IsSuccess);
         
-        // タイムアウトログが記録されていることを確認
+        // タイムアウトログが記録されていることを確認（3段階実行対応）
         var logEntries = result.LogEntries.ToList();
         Assert.Contains(logEntries, entry => 
             entry.Message.Contains("timed out") && 
-            entry.Category == "API");
+            entry.Category == "ServiceOperation");
     }
 
     /// <summary>

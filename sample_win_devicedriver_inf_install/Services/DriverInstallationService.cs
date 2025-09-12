@@ -9,7 +9,7 @@ using sample_win_devicedriver_inf_install.Native;
 namespace sample_win_devicedriver_inf_install.Services;
 
 /// <summary>
-/// ドライバインストールサービスの実装（宣言的インストール専用）
+/// ドライバインストールサービスの実装（宣言的インストール専用・3段階実行対応）
 /// </summary>
 public class DriverInstallationService : IDriverInstallationService
 {
@@ -19,7 +19,7 @@ public class DriverInstallationService : IDriverInstallationService
     private readonly ISetupApiWrapper _setupApiWrapper;
     private readonly ConcurrentDictionary<string, InstallationSession> _activeSessions;
 
-    // SetupAPI呼び出しのデフォルトタイムアウト（NFR-003準拠）
+    // SetupAPI呼び出しのデフォルトタイムアウト（NFR-003準拠・各段階）
     private static readonly TimeSpan DefaultSetupApiTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
@@ -43,7 +43,7 @@ public class DriverInstallationService : IDriverInstallationService
     }
 
     /// <summary>
-    /// INFファイルに従った包括的な宣言的インストールを実行します
+    /// INFファイルに従った包括的な宣言的インストールを実行します（3段階実行）
     /// </summary>
     /// <param name="infPath">INFファイルパス</param>
     /// <param name="sectionName">インストールセクション名（デフォルト: "DefaultInstall"）</param>
@@ -72,7 +72,7 @@ public class DriverInstallationService : IDriverInstallationService
         
         try
         {
-            _logger.LogInformation("Starting declarative installation from INF: {InfPath}, Section: {SectionName} (SessionId: {SessionId})",
+            _logger.LogInformation("Starting 3-phase declarative installation from INF: {InfPath}, Section: {SectionName} (SessionId: {SessionId})",
                 infPath, sectionName, session.SessionId);
 
             // インストール開始ログ (テストが期待する "Started" メッセージ)
@@ -87,7 +87,7 @@ public class DriverInstallationService : IDriverInstallationService
             // Step 1: INF ファイルの検証
             cancellationToken.ThrowIfCancellationRequested();
             await ValidateInfFileAsync(infPath, session.SessionId, cancellationToken);
-            session.UpdateProgress(20, "INF file validation completed");
+            session.UpdateProgress(15, "INF file validation completed");
 
             // Step 2: INF ファイルを開く
             cancellationToken.ThrowIfCancellationRequested();
@@ -95,19 +95,26 @@ public class DriverInstallationService : IDriverInstallationService
             
             try
             {
-                session.UpdateProgress(40, "INF file opened successfully");
+                session.UpdateProgress(25, "INF file opened successfully");
 
-                // Step 3: 指定セクションからのインストール実行
+                // Step 3: 3段階実行による完全なインストール
                 cancellationToken.ThrowIfCancellationRequested();
-                await InstallFromInfSectionAsync(infHandle, sectionName, flags, session.SessionId, cancellationToken);
-                session.UpdateProgress(70, "Main section installation completed");
+                
+                // 段階1: ファイル操作（CopyFiles）
+                await InstallFilesFromInfAsync(infHandle, sectionName, session.SessionId, infPath, cancellationToken);
+                session.UpdateProgress(45, "File operations (CopyFiles) completed");
 
-                // Step 4: Services セクションの自動検出と条件付き実行
+                // 段階2: レジストリ操作（AddReg等）
+                cancellationToken.ThrowIfCancellationRequested();
+                await InstallRegistryFromInfAsync(infHandle, sectionName, session.SessionId, cancellationToken);
+                session.UpdateProgress(70, "Registry operations (AddReg) completed");
+
+                // 段階3: サービス登録（Services セクション）
                 cancellationToken.ThrowIfCancellationRequested();
                 await InstallServicesFromInfAsync(infHandle, sectionName, session.SessionId, cancellationToken);
-                session.UpdateProgress(90, "Services section processing completed");
+                session.UpdateProgress(90, "Services registration completed");
 
-                session.UpdateProgress(100, "Declarative installation completed");
+                session.UpdateProgress(100, "3-phase declarative installation completed");
             }
             finally
             {
@@ -120,7 +127,7 @@ public class DriverInstallationService : IDriverInstallationService
             session.Complete(InstallationStatus.Completed);
             
             await _installationLogger.LogInformationAsync(
-                $"Completed declarative installation from {sectionName} section",
+                $"Completed 3-phase declarative installation from {sectionName} section",
                 "Installation",
                 session.SessionId);
 
@@ -129,25 +136,25 @@ public class DriverInstallationService : IDriverInstallationService
                 installedPackage: driverPackage,
                 sectionName: sectionName,
                 executionTime: executionTime,
-                technicalMessage: $"Declarative installation completed successfully from {sectionName} section"
+                technicalMessage: $"3-phase declarative installation completed successfully from {sectionName} section"
             );
 
             // ログエントリを結果に含める
             var logEntries = await _installationLogger.GetLogEntriesAsync(session.SessionId, cancellationToken);
             result.AddLogEntries(logEntries);
 
-            _logger.LogInformation("Declarative installation completed successfully: {InfPath} (SessionId: {SessionId})",
+            _logger.LogInformation("3-phase declarative installation completed successfully: {InfPath} (SessionId: {SessionId})",
                 infPath, session.SessionId);
 
             return result;
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Declarative installation was cancelled: {InfPath} (SessionId: {SessionId})",
+            _logger.LogWarning("3-phase declarative installation was cancelled: {InfPath} (SessionId: {SessionId})",
                 infPath, session.SessionId);
             
             await _installationLogger.LogWarningAsync(
-                "Declarative installation was cancelled",
+                "3-phase declarative installation was cancelled",
                 "Installation",
                 session.SessionId);
             
@@ -168,11 +175,11 @@ public class DriverInstallationService : IDriverInstallationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred during declarative installation: {InfPath} (SessionId: {SessionId})",
+            _logger.LogError(ex, "Error occurred during 3-phase declarative installation: {InfPath} (SessionId: {SessionId})",
                 infPath, session.SessionId);
 
             await _installationLogger.LogErrorAsync(
-                $"Error occurred during declarative installation: {ex.Message}",
+                $"Error occurred during 3-phase declarative installation: {ex.Message}",
                 "Installation",
                 session.SessionId,
                 ex);
@@ -344,13 +351,13 @@ public class DriverInstallationService : IDriverInstallationService
     }
 
     /// <summary>
-    /// 指定セクションからのインストール実行（タイムアウト制御付き）
+    /// 段階1: ファイル操作（CopyFiles等）を実行します（タイムアウト制御付き・サイレントモード対応）
     /// </summary>
-    private async Task InstallFromInfSectionAsync(IntPtr infHandle, string sectionName, uint flags, string correlationId, CancellationToken cancellationToken)
+    private async Task InstallFilesFromInfAsync(IntPtr infHandle, string sectionName, string correlationId, string infPath, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // まずセクションの存在確認を行う
+        // セクションの存在確認を行う
         bool sectionExists = _setupApiWrapper.SetupFindFirstLine(
             infHandle,
             sectionName,
@@ -362,20 +369,216 @@ public class DriverInstallationService : IDriverInstallationService
         {
             await _installationLogger.LogErrorAsync(
                 $"Section '{sectionName}' not found in INF file",
-                "API",
+                "FileOperation",
                 correlationId);
-
             throw new InvalidOperationException($"Section '{sectionName}' not found in INF file");
         }
 
-        // デフォルトフラグを設定（全ての処理を実行）
-        if (flags == 0)
-            flags = SetupApi.SPINST_ALL;
-
-        // テストが期待するログメッセージを記録
         await _installationLogger.LogInformationAsync(
-            $"Installing from section '{sectionName}' using SetupInstallFromInfSection",
-            "API",
+            $"Starting file operations (CopyFiles) from section '{sectionName}'",
+            "FileOperation",
+            correlationId);
+
+        // INFファイルのディレクトリを取得してソースルートパスとして設定
+        var infDirectory = Path.GetDirectoryName(infPath) ?? throw new InvalidOperationException($"Could not determine directory for INF file: {infPath}");
+        
+        await _installationLogger.LogInformationAsync(
+            $"Setting source root path to INF directory: {infDirectory}",
+            "FileOperation",
+            correlationId);
+
+        // ファイルキューを開く
+        IntPtr fileQueue = IntPtr.Zero;
+        try
+        {
+            var fileQueueTask = Task.Run(() => _setupApiWrapper.SetupOpenFileQueue());
+            fileQueue = await fileQueueTask.WaitAsync(DefaultSetupApiTimeout, cancellationToken);
+
+            if (fileQueue == IntPtr.Zero)
+            {
+                var error = _errorHandler.GetLastError("SetupOpenFileQueue");
+                await _installationLogger.LogErrorAsync(
+                    $"Failed to open file queue: {error.SystemMessage}",
+                    "FileOperation",
+                    correlationId);
+                throw new InvalidOperationException($"Failed to open file queue: {error.SystemMessage}");
+            }
+
+            // ファイル操作をキューに追加（INFディレクトリを明示的にソースルートパスとして指定）
+            bool filesQueued;
+            try
+            {
+                var queueFilesTask = Task.Run(() => _setupApiWrapper.SetupInstallFilesFromInfSection(
+                    infHandle,
+                    IntPtr.Zero, // LayoutInfHandle (same as main INF)
+                    fileQueue,
+                    sectionName,
+                    infDirectory, // SourceRootPath (INFと同じディレクトリを明示指定)
+                    0 // CopyStyle (default)
+                ));
+                filesQueued = await queueFilesTask.WaitAsync(DefaultSetupApiTimeout, cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                await _installationLogger.LogErrorAsync(
+                    $"SetupInstallFilesFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds for section '{sectionName}'",
+                    "FileOperation",
+                    correlationId);
+                throw new OperationCanceledException($"SetupInstallFilesFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds");
+            }
+
+            if (!filesQueued)
+            {
+                var error = _errorHandler.GetLastError("SetupInstallFilesFromInfSection", $"Section: {sectionName}");
+                await _installationLogger.LogErrorAsync(
+                    $"Failed to queue files from section '{sectionName}': {error.SystemMessage}",
+                    "FileOperation",
+                    correlationId);
+                throw new InvalidOperationException($"Failed to queue files from section '{sectionName}': {error.SystemMessage}");
+            }
+
+            await _installationLogger.LogInformationAsync(
+                $"Successfully queued files from section '{sectionName}' with source root: {infDirectory}",
+                "FileOperation",
+                correlationId);
+
+            // ファイルキューをサイレントコールバックでコミット（FR-012準拠）
+            bool commitSuccess;
+            try
+            {
+                var commitTask = Task.Run(() =>
+                {
+                    // サイレントコールバック対応のメソッドを使用（インターフェース経由）
+                    var silentCallback = new SilentFileQueueCallback(_logger, _installationLogger, correlationId, infDirectory);
+                    
+                    // 詳細: どの実装が使用されているかログに記録
+                    var wrapperType = _setupApiWrapper.GetType();
+                    var wrapperTypeName = wrapperType.Name;
+                    var wrapperAssembly = wrapperType.Assembly.GetName().Name;
+                    
+                    _logger.LogInformation("Using SetupApiWrapper implementation: {WrapperType} from {Assembly}", 
+                        wrapperTypeName, wrapperAssembly);
+                    
+                    // SetupApiStub使用時の特別な処理
+                    if (wrapperTypeName == "SetupApiStub")
+                    {
+                        _logger.LogInformation("Running in test mode with SetupApiStub - actual file operations will be mocked");
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Running in production mode with real SetupAPI - actual file operations will be performed");
+                        _logger.LogInformation("File queue handle: {FileQueue}, Silent callback initialized: {CallbackInitialized}, Source root: {SourceRoot}",
+                            fileQueue, silentCallback != null, infDirectory);
+                    }
+                    
+                    try
+                    {
+                        var result = _setupApiWrapper.SetupCommitFileQueueWithSilentCallback(
+                            IntPtr.Zero, // Owner (no parent window)
+                            fileQueue,
+                            silentCallback
+                        );
+                        
+                        _logger.LogInformation("SetupCommitFileQueueWithSilentCallback returned: {Result} (wrapper: {WrapperType})", 
+                            result, wrapperTypeName);
+                        return result;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error in SetupCommitFileQueueWithSilentCallback (wrapper: {WrapperType})", wrapperTypeName);
+                        
+                        // フォールバック: 従来の方法を試行
+                        _logger.LogWarning("Falling back to default commit method (wrapper: {WrapperType})", wrapperTypeName);
+                        
+                        try
+                        {
+                            var fallbackResult = _setupApiWrapper.SetupCommitFileQueue(
+                                IntPtr.Zero, // Owner (no parent window)
+                                fileQueue,
+                                IntPtr.Zero, // MsgHandler
+                                IntPtr.Zero  // Context
+                            );
+                            
+                            _logger.LogInformation("Fallback SetupCommitFileQueue returned: {Result} (wrapper: {WrapperType})",
+                                fallbackResult, wrapperTypeName);
+                            
+                            return fallbackResult;
+                        }
+                        catch (Exception fallbackEx)
+                        {
+                            _logger.LogError(fallbackEx, "Fallback commit method also failed (wrapper: {WrapperType})", wrapperTypeName);
+                            throw;
+                        }
+                    }
+                });
+                commitSuccess = await commitTask.WaitAsync(DefaultSetupApiTimeout, cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                await _installationLogger.LogErrorAsync(
+                    $"SetupCommitFileQueue timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds for section '{sectionName}'",
+                    "FileOperation",
+                    correlationId);
+                throw new OperationCanceledException($"SetupCommitFileQueue timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds");
+            }
+
+            if (!commitSuccess)
+            {
+                var error = _errorHandler.GetLastError("SetupCommitFileQueue", $"Section: {sectionName}");
+                await _installationLogger.LogErrorAsync(
+                    $"Failed to commit file queue for section '{sectionName}': {error.SystemMessage}",
+                    "FileOperation",
+                    correlationId);
+                throw new InvalidOperationException($"Failed to commit file queue for section '{sectionName}': {error.SystemMessage}");
+            }
+
+            await _installationLogger.LogInformationAsync(
+                $"Successfully completed file operations (CopyFiles) from section: {sectionName}",
+                "FileOperation",
+                correlationId);
+
+            _logger.LogDebug("Successfully completed file operations from section: {SectionName}", sectionName);
+        }
+        finally
+        {
+            // ファイルキューを確実に閉じる
+            if (fileQueue != IntPtr.Zero)
+            {
+                _setupApiWrapper.SetupCloseFileQueue(fileQueue);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 段階2: レジストリ操作（AddReg等）を実行します（タイムアウト制御付き）
+    /// </summary>
+    private async Task InstallRegistryFromInfAsync(IntPtr infHandle, string sectionName, string correlationId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // セクションの存在確認を行う
+        bool sectionExists = _setupApiWrapper.SetupFindFirstLine(
+            infHandle,
+            sectionName,
+            null, // Key (any line in section)
+            out SetupApi.INFCONTEXT context
+        );
+
+        if (!sectionExists)
+        {
+            await _installationLogger.LogErrorAsync(
+                $"Section '{sectionName}' not found in INF file",
+                "RegistryOperation",
+                correlationId);
+            throw new InvalidOperationException($"Section '{sectionName}' not found in INF file");
+        }
+
+        // レジストリ操作のみのフラグを設定（ファイル操作は除く）
+        uint registryFlags = SetupApi.SPINST_REGISTRY | SetupApi.SPINST_INIFILES | SetupApi.SPINST_INI2REG | SetupApi.SPINST_BITREG;
+
+        await _installationLogger.LogInformationAsync(
+            $"Starting registry operations (AddReg) from section '{sectionName}' using SetupInstallFromInfSection",
+            "RegistryOperation",
             correlationId);
 
         // SetupAPI呼び出しをタイムアウト制御可能な非同期実行でラップ（NFR-003準拠）
@@ -387,7 +590,7 @@ public class DriverInstallationService : IDriverInstallationService
                 IntPtr.Zero, // Owner (no parent window)
                 infHandle,
                 sectionName,
-                flags,
+                registryFlags,
                 IntPtr.Zero, // RelativeKeyRoot (default)
                 null, // SourceRootPath (use INF directory)
                 0, // CopyFlags
@@ -404,7 +607,7 @@ public class DriverInstallationService : IDriverInstallationService
             // タイムアウトが発生した場合
             await _installationLogger.LogErrorAsync(
                 $"SetupInstallFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds for section '{sectionName}'",
-                "API",
+                "RegistryOperation",
                 correlationId);
 
             throw new OperationCanceledException($"SetupInstallFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds");
@@ -414,23 +617,23 @@ public class DriverInstallationService : IDriverInstallationService
         {
             var error = _errorHandler.GetLastError("SetupInstallFromInfSection", $"Section: {sectionName}");
             await _installationLogger.LogErrorAsync(
-                $"Failed to install from INF section '{sectionName}': {error.SystemMessage}",
-                "API",
+                $"Failed to perform registry operations from section '{sectionName}': {error.SystemMessage}",
+                "RegistryOperation",
                 correlationId);
 
-            throw new InvalidOperationException($"Failed to install from INF section '{sectionName}': {error.SystemMessage}");
+            throw new InvalidOperationException($"Failed to perform registry operations from section '{sectionName}': {error.SystemMessage}");
         }
 
         await _installationLogger.LogInformationAsync(
-            $"Successfully installed from INF section: {sectionName}",
-            "API",
+            $"Successfully completed registry operations (AddReg) from section: {sectionName}",
+            "RegistryOperation",
             correlationId);
 
-        _logger.LogDebug("Successfully installed from INF section: {SectionName}", sectionName);
+        _logger.LogDebug("Successfully completed registry operations from section: {SectionName}", sectionName);
     }
 
     /// <summary>
-    /// Services セクションの自動検出と条件付きインストール（タイムアウト制御付き）
+    /// 段階3: Services セクションの自動検出と条件付きインストール（タイムアウト制御付き）
     /// </summary>
     private async Task InstallServicesFromInfAsync(IntPtr infHandle, string baseSectionName, string correlationId, CancellationToken cancellationToken)
     {
@@ -450,7 +653,7 @@ public class DriverInstallationService : IDriverInstallationService
         {
             await _installationLogger.LogInformationAsync(
                 $"Found Services section: {servicesSectionName}",
-                "API",
+                "ServiceOperation",
                 correlationId);
 
             _logger.LogDebug("Found Services section: {ServicesSectionName}", servicesSectionName);
@@ -473,7 +676,7 @@ public class DriverInstallationService : IDriverInstallationService
                 // タイムアウトが発生した場合（Services セクションも致命的エラーとして扱う）
                 await _installationLogger.LogErrorAsync(
                     $"SetupInstallServicesFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds for section '{servicesSectionName}'",
-                    "API",
+                    "ServiceOperation",
                     correlationId);
 
                 throw new OperationCanceledException($"SetupInstallServicesFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds");
@@ -485,7 +688,7 @@ public class DriverInstallationService : IDriverInstallationService
                 // Services セクションの失敗も致命的エラーとして扱う
                 await _installationLogger.LogErrorAsync(
                     $"Failed to install services from section '{servicesSectionName}': {error.SystemMessage}",
-                    "API",
+                    "ServiceOperation",
                     correlationId);
 
                 throw new InvalidOperationException($"Failed to install services from section '{servicesSectionName}': {error.SystemMessage}");
@@ -494,7 +697,7 @@ public class DriverInstallationService : IDriverInstallationService
             {
                 await _installationLogger.LogInformationAsync(
                     $"Successfully installed services from section: {servicesSectionName}",
-                    "API",
+                    "ServiceOperation",
                     correlationId);
 
                 _logger.LogDebug("Successfully installed services from section: {ServicesSectionName}", servicesSectionName);
@@ -504,7 +707,7 @@ public class DriverInstallationService : IDriverInstallationService
         {
             await _installationLogger.LogInformationAsync(
                 $"Services section not found for: {baseSectionName}",
-                "API",
+                "ServiceOperation",
                 correlationId);
 
             _logger.LogDebug("No Services section found for: {BaseSectionName}", baseSectionName);

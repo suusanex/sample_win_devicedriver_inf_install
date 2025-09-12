@@ -44,18 +44,10 @@ public class Program
             {
                 await host.StartAsync();
 
-                // CommandExecutorServiceから終了コードを取得
+                // CommandExecutorServiceから終了コードを取得するため参照を保持
                 var commandExecutor = host.Services.GetRequiredService<CommandExecutorService>();
                 
-                // アプリケーションが終了するまで待機
-                var applicationLifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
-                await Task.Delay(100); // サービスの実行を待つ
-                
-                if (!applicationLifetime.ApplicationStopping.IsCancellationRequested)
-                {
-                    applicationLifetime.StopApplication();
-                }
-                
+                // ホストが停止されるまで待機（停止は CommandExecutorService 側で行う）
                 await host.WaitForShutdownAsync();
                 
                 return commandExecutor.ExitCode;

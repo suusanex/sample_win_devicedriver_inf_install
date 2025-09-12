@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Console;
 using sample_win_devicedriver_inf_install.Contracts;
 using sample_win_devicedriver_inf_install.Services;
 using sample_win_devicedriver_inf_install.Tests.Stubs;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 
@@ -17,6 +18,7 @@ namespace sample_win_devicedriver_inf_install.IntegrationTests.Fixtures;
 public class TestEnvironmentFixture : IDisposable
 {
     public IHost Host { get; private set; } = null!;
+    public IServiceProvider ServiceProvider => Host.Services;
     public string TestDataDirectory { get; private set; } = null!;
     public string TempTestDirectory { get; private set; } = null!;
     
@@ -54,6 +56,11 @@ public class TestEnvironmentFixture : IDisposable
         // 一時テストディレクトリの作成
         TempTestDirectory = Path.Combine(Path.GetTempPath(), $"DeviceDriverInstaller_Test_{Guid.NewGuid():N}");
         Directory.CreateDirectory(TempTestDirectory);
+        
+        // SampleDriversディレクトリをTestDataDirectoryに設定
+        var sampleDriversPath = Path.Combine(TempTestDirectory, "SampleDrivers");
+        Directory.CreateDirectory(sampleDriversPath);
+        TestDataDirectory = TempTestDirectory;
     }
     
     /// <summary>
@@ -82,7 +89,7 @@ public class TestEnvironmentFixture : IDisposable
                 services.AddSingleton(setupApiStub);
 
                 // コアサービスの登録
-                services.AddSingleton<LocalizationService>();
+                services.AddSingleton<LocalizationService>(_ => new LocalizationService(CultureInfo.GetCultureInfo("ja-JP")));
                 services.AddSingleton<WindowsApiErrorHandler>();
                 
                 // アプリケーションサービスの登録
@@ -98,13 +105,44 @@ public class TestEnvironmentFixture : IDisposable
     /// </summary>
     private void CopyTestData()
     {
-        var sampleDriversSource = Path.Combine("..", "..", "..", "..", "TestData");
-        var sampleDriversTarget = Path.Combine(TempTestDirectory, "SampleDrivers");
+        // TestDataディレクトリからサンプルドライバーファイルを作成
+        var sampleDriversDir = Path.Combine(TestDataDirectory, "SampleDrivers");
+        Directory.CreateDirectory(sampleDriversDir);
         
-        if (Directory.Exists(sampleDriversSource))
-        {
-            CopyDirectory(sampleDriversSource, sampleDriversTarget);
-        }
+        // シンプルなテスト用INFファイルを作成
+        var sampleInfContent = @"[Version]
+Signature=""$WINDOWS NT$""
+Class=Sample
+ClassGUID={12345678-1234-1234-1234-123456789ABC}
+Provider=%ManufacturerName%
+DriverVer=01/01/2024,1.0.0.0
+
+[DefaultInstall]
+CopyFiles=SampleFiles
+AddReg=SampleRegistry
+
+[DefaultInstall.Services]
+AddService=SampleService,0x00000002,SampleServiceInstall
+
+[SampleFiles]
+sample.sys
+
+[SampleRegistry]
+HKLM,SOFTWARE\SampleDriver,Version,0,""1.0.0.0""
+
+[SampleServiceInstall]
+DisplayName=""Sample Driver Service""
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%12%\sample.sys
+
+[Strings]
+ManufacturerName=""Sample Manufacturer""
+";
+        
+        var sampleInfPath = Path.Combine(sampleDriversDir, "sample_driver.inf");
+        File.WriteAllText(sampleInfPath, sampleInfContent);
     }
     
     /// <summary>
@@ -142,12 +180,70 @@ public class TestEnvironmentFixture : IDisposable
         var filePath = Path.Combine(TempTestDirectory, fileName);
         File.WriteAllText(filePath, content);
         
+        // INFファイルと同じディレクトリに参照されるソースファイルを作成
+        CreateSourceFilesForInf(content, Path.GetDirectoryName(filePath)!);
+        
         // SetupApiStubにINF内容を登録（実際のファイル読み込みを回避）
         var setupApiStub = GetService<SetupApiStub>();
         var sections = ParseInfSections(content);
         setupApiStub.SetupInfContent(filePath, sections);
         
         return filePath;
+    }
+    
+    /// <summary>
+    /// INFファイルで参照されるソースファイルを作成
+    /// </summary>
+    /// <param name="infContent">INFファイルの内容</param>
+    /// <param name="targetDirectory">ソースファイルを作成するディレクトリ</param>
+    private static void CreateSourceFilesForInf(string infContent, string targetDirectory)
+    {
+        var lines = infContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        bool inSourceDisksFiles = false;
+        
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+            if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith(';'))
+                continue;
+                
+            if (trimmedLine.StartsWith('[') && trimmedLine.EndsWith(']'))
+            {
+                // セクション開始
+                var sectionName = trimmedLine[1..^1];
+                inSourceDisksFiles = sectionName.Equals("SourceDisksFiles", StringComparison.OrdinalIgnoreCase);
+            }
+            else if (inSourceDisksFiles && trimmedLine.Contains('='))
+            {
+                // SourceDisksFiles セクション内のファイル参照
+                var parts = trimmedLine.Split('=', 2);
+                if (parts.Length == 2)
+                {
+                    var fileName = parts[0].Trim();
+                    var filePath = Path.Combine(targetDirectory, fileName);
+                    
+                    // ダミーファイルを作成
+                    if (!File.Exists(filePath))
+                    {
+                        File.WriteAllText(filePath, $"; Dummy driver file for testing: {fileName}\n; DO NOT USE IN PRODUCTION\n");
+                    }
+                }
+            }
+            else if (!inSourceDisksFiles && (trimmedLine.Contains(".sys") || trimmedLine.Contains(".dll") || trimmedLine.Contains(".exe")))
+            {
+                // CopyFiles などのセクションでファイル参照がある場合
+                var fileName = trimmedLine.Trim();
+                if (Path.GetExtension(fileName).Length > 0) // 拡張子がある場合のみ
+                {
+                    var filePath = Path.Combine(targetDirectory, fileName);
+                    
+                    if (!File.Exists(filePath))
+                    {
+                        File.WriteAllText(filePath, $"; Dummy file for testing: {fileName}\n; DO NOT USE IN PRODUCTION\n");
+                    }
+                }
+            }
+        }
     }
     
     /// <summary>

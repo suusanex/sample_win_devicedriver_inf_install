@@ -1,0 +1,24 @@
+﻿[Version]
+Signature="$WINDOWS NT$"
+Class=Sample
+ClassGUID={12345678-1234-5678-9ABC-DEF012345678}
+Provider=TestProvider
+DriverVer=09/12/2025,1.0.0.0
+
+[DefaultInstall]
+CopyFiles=DriverFiles
+
+[DriverFiles]
+testDriver.sys
+
+[DestinationDirs]
+DriverFiles = 12
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+testDriver.sys = 1
+
+[Strings]
+DiskName = "Test Driver Installation Disk"
