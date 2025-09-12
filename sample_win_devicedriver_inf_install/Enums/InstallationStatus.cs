@@ -20,6 +20,9 @@ public enum InstallationStatus
     /// <summary>成功</summary>
     Completed,
     
+    /// <summary>警告付きで完了</summary>
+    CompletedWithWarnings,
+    
     /// <summary>失敗</summary>
     Failed,
     
@@ -27,5 +30,8 @@ public enum InstallationStatus
     Cancelled,
     
     /// <summary>タイムアウト</summary>
-    TimedOut
+    TimedOut,
+    
+    /// <summary>ユーザー入力待ち</summary>
+    PendingUserInput
 }
