@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using sample_win_devicedriver_inf_install.Models.ValueObjects;
+using sample_win_devicedriver_inf_install.Contracts;
 using sample_win_devicedriver_inf_install.Native;
 
 namespace sample_win_devicedriver_inf_install.Services;
@@ -11,6 +12,20 @@ namespace sample_win_devicedriver_inf_install.Services;
 /// </summary>
 public class WindowsApiErrorHandler
 {
+    private readonly LocalizationService _localization;
+    private readonly ISetupApiWrapper _setupApiWrapper;
+
+    /// <summary>
+    /// コンストラクタ
+    /// </summary>
+    /// <param name="localization">ローカライゼーションサービス</param>
+    /// <param name="setupApiWrapper">SetupAPI ラッパー</param>
+    public WindowsApiErrorHandler(LocalizationService localization, ISetupApiWrapper setupApiWrapper)
+    {
+        _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+        _setupApiWrapper = setupApiWrapper ?? throw new ArgumentNullException(nameof(setupApiWrapper));
+    }
+
     /// <summary>
     /// 最後の Windows API エラーを取得し、ApiErrorInfo オブジェクトを作成します
     /// </summary>
@@ -19,7 +34,7 @@ public class WindowsApiErrorHandler
     /// <returns>技術詳細を含むエラー情報</returns>
     public ApiErrorInfo GetLastError(string operationName, string? additionalContext = null)
     {
-        uint errorCode = SetupApi.GetLastError();
+        uint errorCode = _setupApiWrapper.GetLastError();
         return CreateApiErrorInfo(errorCode, operationName, additionalContext);
     }
 
@@ -33,13 +48,15 @@ public class WindowsApiErrorHandler
     public ApiErrorInfo CreateApiErrorInfo(uint errorCode, string operationName, string? additionalContext = null)
     {
         var systemMessage = GetSystemErrorMessage(errorCode);
+        var localizedMessage = GetLocalizedErrorMessage(errorCode, operationName);
         var technicalDetails = BuildTechnicalDetails(operationName, systemMessage, additionalContext, errorCode);
         
         return ApiErrorInfo.Create(
             errorCode: errorCode,
             systemMessage: systemMessage,
             technicalDetails: technicalDetails,
-            apiFunction: operationName
+            apiFunction: operationName,
+            localizedMessage: localizedMessage
         );
     }
 
@@ -53,7 +70,7 @@ public class WindowsApiErrorHandler
         const uint bufferSize = 1024;
         var buffer = new StringBuilder((int)bufferSize);
         
-        uint result = SetupApi.FormatMessage(
+        uint result = _setupApiWrapper.FormatMessage(
             SetupApi.FORMAT_MESSAGE_FROM_SYSTEM | SetupApi.FORMAT_MESSAGE_IGNORE_INSERTS,
             IntPtr.Zero,
             errorCode,
@@ -68,6 +85,66 @@ public class WindowsApiErrorHandler
         }
         
         return buffer.ToString().TrimEnd('\r', '\n');
+    }
+
+    /// <summary>
+    /// ローカライズされたエラーメッセージを取得します（日本語）
+    /// </summary>
+    /// <param name="errorCode">エラーコード</param>
+    /// <param name="operationName">操作名</param>
+    /// <returns>日本語のエラーメッセージ</returns>
+    private string GetLocalizedErrorMessage(uint errorCode, string operationName)
+    {
+        // 主要なエラーコードの日本語メッセージ
+        var messageKey = errorCode switch
+        {
+            2 => "Error_FileNotFound",
+            3 => "Error_PathNotFound", 
+            5 => "Error_AccessDenied",
+            87 => "Error_InvalidParameter",
+            0xE0000100 => "Error_InvalidInfFormat",
+            0xE0000101 => "Error_SectionNotFound",
+            0xE0000102 => "Error_InvalidInfLine",
+            0xE0000103 => "Error_KeyNotFound",
+            0xE0000104 => "Error_RegistryOperationFailed",
+            0xE0000108 => "Error_FileCopyFailed",
+            _ => "Error_UnknownSetupApiError"
+        };
+
+        try
+        {
+            var message = _localization.GetMessage(messageKey, errorCode.ToString("X8"));
+            return !string.IsNullOrEmpty(message) ? message : GetFallbackLocalizedMessage(errorCode, operationName);
+        }
+        catch
+        {
+            // ローカライゼーション失敗時のフォールバック
+            return GetFallbackLocalizedMessage(errorCode, operationName);
+        }
+    }
+
+    /// <summary>
+    /// フォールバック用の日本語エラーメッセージを取得します
+    /// </summary>
+    /// <param name="errorCode">エラーコード</param>
+    /// <param name="operationName">操作名</param>
+    /// <returns>フォールバック用の日本語メッセージ</returns>
+    private string GetFallbackLocalizedMessage(uint errorCode, string operationName)
+    {
+        return errorCode switch
+        {
+            2 => "指定されたファイルが見つかりません。",
+            3 => "指定されたパスが見つかりません。",
+            5 => "アクセスが拒否されました。管理者権限で実行してください。",
+            87 => "不正なパラメータが指定されました。",
+            0xE0000100 => "INFファイルの形式が無効です。",
+            0xE0000101 => "指定されたセクションがINFファイルに見つかりません。",
+            0xE0000102 => "INFファイルの行形式が無効です。",
+            0xE0000103 => "指定されたキーがINFファイルに見つかりません。",
+            0xE0000104 => "レジストリ操作が失敗しました。",
+            0xE0000108 => "ファイルのコピー操作が失敗しました。",
+            _ => $"インストール中にエラーが発生しました (エラーコード: 0x{errorCode:X8})"
+        };
     }
 
     /// <summary>
@@ -134,22 +211,47 @@ public class WindowsApiErrorHandler
     {
         uint errorCode = 0;
         string systemMessage;
+        string localizedMessage;
         
         // Win32Exception からエラーコードを抽出
         if (exception is Win32Exception win32Exception)
         {
             errorCode = (uint)win32Exception.NativeErrorCode;
             systemMessage = GetSystemErrorMessage(errorCode);
+            localizedMessage = GetLocalizedErrorMessage(errorCode, operationName);
         }
         // COMException からエラーコードを抽出
         else if (exception is COMException comException)
         {
             errorCode = (uint)comException.HResult;
             systemMessage = comException.Message;
+            localizedMessage = GetLocalizedMessageFromException(comException, operationName);
         }
+        // FileNotFoundException の場合
+        else if (exception is FileNotFoundException)
+        {
+            errorCode = 2; // ERROR_FILE_NOT_FOUND
+            systemMessage = exception.Message;
+            localizedMessage = "指定されたINFファイルが見つかりません。ファイルパスを確認してください。";
+        }
+        // DirectoryNotFoundException の場合
+        else if (exception is DirectoryNotFoundException)
+        {
+            errorCode = 3; // ERROR_PATH_NOT_FOUND
+            systemMessage = exception.Message;
+            localizedMessage = "指定されたパスが見つかりません。";
+        }
+        // InvalidOperationException の場合
+        else if (exception is InvalidOperationException)
+        {
+            systemMessage = exception.Message;
+            localizedMessage = GetLocalizedMessageFromInvalidOperation(exception.Message);
+        }
+        // その他の例外
         else
         {
             systemMessage = exception.Message;
+            localizedMessage = "インストール中に予期しないエラーが発生しました。";
         }
         
         var technicalDetails = BuildExceptionTechnicalDetails(operationName, exception, errorCode);
@@ -158,8 +260,56 @@ public class WindowsApiErrorHandler
             errorCode: errorCode,
             systemMessage: systemMessage,
             technicalDetails: technicalDetails,
-            apiFunction: operationName
+            apiFunction: operationName,
+            localizedMessage: localizedMessage
         );
+    }
+
+    /// <summary>
+    /// COMExceptionから日本語メッセージを取得します
+    /// </summary>
+    /// <param name="comException">COMException</param>
+    /// <param name="operationName">操作名</param>
+    /// <returns>日本語メッセージ</returns>
+    private string GetLocalizedMessageFromException(COMException comException, string operationName)
+    {
+        var hResult = (uint)comException.HResult;
+        return hResult switch
+        {
+            0x80070005 => "アクセスが拒否されました。管理者権限で実行してください。",
+            0x80070002 => "指定されたファイルが見つかりません。",
+            0x80070003 => "指定されたパスが見つかりません。",
+            _ => "インストール中にシステムエラーが発生しました。"
+        };
+    }
+
+    /// <summary>
+    /// InvalidOperationExceptionのメッセージから日本語メッセージを取得します
+    /// </summary>
+    /// <param name="exceptionMessage">例外メッセージ</param>
+    /// <returns>日本語メッセージ</returns>
+    private string GetLocalizedMessageFromInvalidOperation(string exceptionMessage)
+    {
+        if (exceptionMessage.Contains("INF file", StringComparison.OrdinalIgnoreCase))
+        {
+            if (exceptionMessage.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                return "指定されたINFファイルが見つかりません。";
+            if (exceptionMessage.Contains("invalid", StringComparison.OrdinalIgnoreCase) || 
+                exceptionMessage.Contains("Version", StringComparison.OrdinalIgnoreCase))
+                return "INFファイルの形式が無効です。[Version]セクションを確認してください。";
+            if (exceptionMessage.Contains("section", StringComparison.OrdinalIgnoreCase))
+                return "指定されたセクションがINFファイルに見つかりません。";
+        }
+        
+        if (exceptionMessage.Contains("registry", StringComparison.OrdinalIgnoreCase) ||
+            exceptionMessage.Contains("レジストリ", StringComparison.OrdinalIgnoreCase))
+            return "レジストリ操作が失敗しました。管理者権限で実行してください。";
+        
+        if (exceptionMessage.Contains("access", StringComparison.OrdinalIgnoreCase) ||
+            exceptionMessage.Contains("permission", StringComparison.OrdinalIgnoreCase))
+            return "アクセスが拒否されました。管理者権限で実行してください。";
+        
+        return "インストール処理中にエラーが発生しました。";
     }
 
     /// <summary>
@@ -176,6 +326,11 @@ public class WindowsApiErrorHandler
         if (errorCode != 0)
         {
             details += $", Error Code: 0x{errorCode:X8}";
+        }
+        
+        if (exception.InnerException != null)
+        {
+            details += $", Inner Exception: {exception.InnerException.GetType().Name}: {exception.InnerException.Message}";
         }
         
         return details;

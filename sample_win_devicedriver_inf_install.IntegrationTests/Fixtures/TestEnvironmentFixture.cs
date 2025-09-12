@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using sample_win_devicedriver_inf_install.Contracts;
 using sample_win_devicedriver_inf_install.Services;
+using sample_win_devicedriver_inf_install.Tests.Stubs;
 using System.IO;
 using System.Reflection;
 
@@ -11,6 +12,7 @@ namespace sample_win_devicedriver_inf_install.IntegrationTests.Fixtures;
 
 /// <summary>
 /// 統合テスト環境のセットアップとクリーンアップを管理するフィクスチャ
+/// 注意: 実際のOS環境に影響を与えないよう、SetupAPIのスタブ実装を使用します
 /// </summary>
 public class TestEnvironmentFixture : IDisposable
 {
@@ -56,6 +58,7 @@ public class TestEnvironmentFixture : IDisposable
     
     /// <summary>
     /// DIコンテナとホストのセットアップ
+    /// 統合テスト用にスタブ実装を使用して実OS環境への影響を回避
     /// </summary>
     private void SetupHost()
     {
@@ -71,10 +74,20 @@ public class TestEnvironmentFixture : IDisposable
             })
             .ConfigureServices((context, services) =>
             {
-                // サービスの登録
+                // SetupAPIスタブを使用（実OS環境に影響を与えない）
+                var setupApiStub = new SetupApiStub();
+                services.AddSingleton<ISetupApiWrapper>(setupApiStub);
+                
+                // 統合テスト時にSetupApiStubにテスト用INF構造を設定するためのアクセスを提供
+                services.AddSingleton(setupApiStub);
+
+                // コアサービスの登録
+                services.AddSingleton<LocalizationService>();
+                services.AddSingleton<WindowsApiErrorHandler>();
+                
+                // アプリケーションサービスの登録
                 services.AddSingleton<IDriverInstallationService, DriverInstallationService>();
                 services.AddSingleton<IInstallationLogger, InstallationLogger>();
-                services.AddSingleton<WindowsApiErrorHandler>();
             });
             
         Host = hostBuilder.Build();
@@ -119,7 +132,7 @@ public class TestEnvironmentFixture : IDisposable
     }
     
     /// <summary>
-    /// リソースクラスからテストINFファイルを作成
+    /// リソースクラスからテストINFファイルを作成し、SetupApiStubに登録
     /// </summary>
     /// <param name="content">INFファイルの内容</param>
     /// <param name="fileName">ファイル名</param>
@@ -128,11 +141,51 @@ public class TestEnvironmentFixture : IDisposable
     {
         var filePath = Path.Combine(TempTestDirectory, fileName);
         File.WriteAllText(filePath, content);
+        
+        // SetupApiStubにINF内容を登録（実際のファイル読み込みを回避）
+        var setupApiStub = GetService<SetupApiStub>();
+        var sections = ParseInfSections(content);
+        setupApiStub.SetupInfContent(filePath, sections);
+        
         return filePath;
     }
     
     /// <summary>
+    /// INFファイルの内容からセクション構造を解析
+    /// </summary>
+    /// <param name="infContent">INFファイルの内容</param>
+    /// <returns>セクション構造</returns>
+    private static Dictionary<string, List<string>> ParseInfSections(string infContent)
+    {
+        var sections = new Dictionary<string, List<string>>();
+        var currentSection = string.Empty;
+        var lines = infContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+            if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith(';'))
+                continue;
+                
+            if (trimmedLine.StartsWith('[') && trimmedLine.EndsWith(']'))
+            {
+                // セクション開始
+                currentSection = trimmedLine[1..^1];
+                sections[currentSection] = new List<string>();
+            }
+            else if (!string.IsNullOrEmpty(currentSection) && sections.ContainsKey(currentSection))
+            {
+                // セクション内のライン
+                sections[currentSection].Add(trimmedLine);
+            }
+        }
+        
+        return sections;
+    }
+    
+    /// <summary>
     /// 管理者権限が必要なテストかどうかを確認
+    /// 注意: この統合テストではスタブを使用するため、実際には管理者権限は不要です
     /// </summary>
     /// <returns>管理者権限で実行されている場合はtrue</returns>
     public static bool IsRunningAsAdministrator()

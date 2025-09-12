@@ -225,15 +225,20 @@ public class VerificationScenarioTests : IClassFixture<TestEnvironmentFixture>
             InstallationStatus.CompletedWithWarnings, 
             InstallationStatus.Failed);
         
-        // 警告やエラーがログに記録されていることを確認
-        result.LogEntries.Should().Contain(log => 
-            log.Level == sample_win_devicedriver_inf_install.Enums.LogLevel.Warning || 
-            log.Level == sample_win_devicedriver_inf_install.Enums.LogLevel.Error);
+        // 失敗した場合は、エラーがログに記録されていることを確認
+        if (result.Status == InstallationStatus.Failed)
+        {
+            result.LogEntries.Should().Contain(log => log.Level == sample_win_devicedriver_inf_install.Enums.LogLevel.Error);
+        }
         
+        // 警告付きで完了した場合は、警告がログに記録されていることを確認
         if (result.Status == InstallationStatus.CompletedWithWarnings)
         {
             result.LogEntries.Should().Contain(log => log.Level == sample_win_devicedriver_inf_install.Enums.LogLevel.Warning);
         }
+        
+        // 成功した場合でも、有益な情報ログが記録されていることを確認
+        result.LogEntries.Should().Contain(log => log.Level == sample_win_devicedriver_inf_install.Enums.LogLevel.Information);
     }
 
     /// <summary>

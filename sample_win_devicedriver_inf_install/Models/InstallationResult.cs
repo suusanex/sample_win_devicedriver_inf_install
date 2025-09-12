@@ -30,6 +30,11 @@ public class InstallationResult
     public bool IsSuccessful => Status == InstallationStatus.Completed;
 
     /// <summary>
+    /// 成功フラグ（テスト用プロパティ）
+    /// </summary>
+    public bool IsSuccess => IsSuccessful;
+
+    /// <summary>
     /// エラー情報（失敗時）
     /// </summary>
     public ApiErrorInfo? ErrorInfo { get; set; }
@@ -100,17 +105,20 @@ public class InstallationResult
         TimeSpan? executionTime = null,
         string? technicalMessage = null)
     {
-        return new InstallationResult
+        var actualExecutionTime = executionTime ?? TimeSpan.Zero;
+        var result = new InstallationResult
         {
             SessionId = sessionId,
             Status = InstallationStatus.Completed,
             InstalledPackage = installedPackage,
-            SectionName = sectionName,
-            ExecutionTime = executionTime ?? TimeSpan.Zero,
-            StartTime = DateTime.UtcNow.Subtract(executionTime ?? TimeSpan.Zero),
+            SectionName = sectionName ?? "DefaultInstall",
+            ExecutionTime = actualExecutionTime,
+            StartTime = DateTime.UtcNow.Subtract(actualExecutionTime),
             EndTime = DateTime.UtcNow,
             TechnicalMessage = technicalMessage ?? "Driver installation completed successfully"
         };
+        
+        return result;
     }
 
     /// <summary>

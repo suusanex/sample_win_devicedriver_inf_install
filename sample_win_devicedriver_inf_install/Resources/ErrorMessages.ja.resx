@@ -59,6 +59,41 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
 
+  <!-- Windows API エラーメッセージ (追加) -->
+  <data name="Error_FileNotFound" xml:space="preserve">
+    <value>INFファイルが見つかりません。ファイルパスを確認してください。</value>
+  </data>
+  <data name="Error_PathNotFound" xml:space="preserve">
+    <value>指定されたパスが見つかりません。</value>
+  </data>
+  <data name="Error_AccessDenied" xml:space="preserve">
+    <value>アクセスが拒否されました。管理者権限で実行してください。</value>
+  </data>
+  <data name="Error_InvalidParameter" xml:space="preserve">
+    <value>不正なパラメータが指定されました。</value>
+  </data>
+  <data name="Error_InvalidInfFormat" xml:space="preserve">
+    <value>INFファイルの形式が無効です。</value>
+  </data>
+  <data name="Error_SectionNotFound" xml:space="preserve">
+    <value>指定されたセクションがINFファイルに見つかりません。</value>
+  </data>
+  <data name="Error_InvalidInfLine" xml:space="preserve">
+    <value>INFファイルの行形式が無効です。</value>
+  </data>
+  <data name="Error_KeyNotFound" xml:space="preserve">
+    <value>指定されたキーがINFファイルに見つかりません。</value>
+  </data>
+  <data name="Error_RegistryOperationFailed" xml:space="preserve">
+    <value>レジストリ操作が失敗しました。</value>
+  </data>
+  <data name="Error_FileCopyFailed" xml:space="preserve">
+    <value>ファイルのコピー操作が失敗しました。</value>
+  </data>
+  <data name="Error_UnknownSetupApiError" xml:space="preserve">
+    <value>Setup APIで不明なエラーが発生しました (エラーコード: 0x{0})。</value>
+  </data>
+
   <!-- 基本的なファイルシステムエラー -->
   <data name="2" xml:space="preserve">
     <value>指定されたファイルが見つかりません。</value>
@@ -197,32 +232,6 @@
   </data>
   <data name="DriverInstallation_Timeout" xml:space="preserve">
     <value>インストール処理がタイムアウトしました。</value>
-  </data>
-
-  <!-- SetupAPI エラーメッセージ -->
-  <data name="Error_FileNotFound" xml:space="preserve">
-    <value>INFファイルが見つかりません。ファイルパスを確認してください。</value>
-  </data>
-  <data name="Error_AccessDenied" xml:space="preserve">
-    <value>アクセスが拒否されました。管理者権限で実行してください。</value>
-  </data>
-  <data name="Error_InvalidParameter" xml:space="preserve">
-    <value>不正なパラメータが指定されました。</value>
-  </data>
-  <data name="Error_InfFormatInvalid" xml:space="preserve">
-    <value>INFファイルの形式が無効です。</value>
-  </data>
-  <data name="Error_SectionNotFound" xml:space="preserve">
-    <value>指定されたセクションがINFファイルに見つかりません。</value>
-  </data>
-  <data name="Error_RegistryOperationFailed" xml:space="preserve">
-    <value>レジストリ操作が失敗しました。</value>
-  </data>
-  <data name="Error_FileCopyFailed" xml:space="preserve">
-    <value>ファイルのコピー操作が失敗しました。</value>
-  </data>
-  <data name="Error_UnknownError" xml:space="preserve">
-    <value>不明なエラーが発生しました (エラーコード: {0})。</value>
   </data>
 
   <!-- トラブルシューティングメッセージ -->

@@ -3,6 +3,12 @@
 ## 概要
 このプロジェクトには、Windows デバイスドライバ INF インストーラの統合テストが含まれており、quickstart.mdに記載されたシナリオをテストコードで検証できます。
 
+## 必須ルール（spec-kit 共通）
+- CI で実行される統合テストは、実OS環境（レジストリ、SetupAPI、サービス、ドライバ、デバイス等）を変更しない。
+- OS依存APIは必ずインターフェースで抽象化し、統合テストではスタブを注入する。
+  - 本プロジェクトでは ISetupApiWrapper を使用し、IntegrationTests では SetupApiStub をDIで注入する。
+- 実OS変更を伴う検証は docs/os-integration-test-spec.md に従い、専用環境でのみ実施する（CIでは実行しない）。
+
 ## テストカテゴリ
 
 ### 1. UnifiedInstallationScenarioTests
@@ -29,20 +35,18 @@
 
 ### 必要な権限
 ```cmd
-# 管理者権限でのテスト実行を推奨
-# 一部のテストは管理者権限なしでも実行可能ですが、SetupAPI関連の機能は制限されます
+# 管理者権限は不要（OS環境テストを除く）
 ```
 
 ### 環境要件
 - Windows 10 または Windows 11
 - .NET 10 SDK
-- 管理者権限（推奨）
 - Visual Studio または dotnet CLI
 
 ## テスト実行方法
 
 ### Visual Studio での実行
-1. Visual Studio を管理者権限で起動
+1. Visual Studio を起動
 2. テストエクスプローラーでテストを実行
 3. 各テストクラスまたは個別テストメソッドを実行可能
 
@@ -59,14 +63,6 @@ dotnet test sample_win_devicedriver_inf_install.IntegrationTests --filter "Fully
 
 # 詳細ログ付きで実行
 dotnet test sample_win_devicedriver_inf_install.IntegrationTests --configuration Release --logger "console;verbosity=detailed"
-```
-
-### 管理者権限でのテスト実行
-```cmd
-# PowerShellを管理者権限で起動してから実行
-Start-Process powershell -Verb RunAs
-cd "C:\YourPath\sample_win_devicedriver_inf_install"
-dotnet test sample_win_devicedriver_inf_install.IntegrationTests --configuration Release
 ```
 
 ## テストデータ
@@ -93,10 +89,9 @@ dotnet test sample_win_devicedriver_inf_install.IntegrationTests --configuration
 - パフォーマンス要件が満たされた
 
 ### 失敗した場合のトラブルシューティング
-1. **権限エラー**: 管理者権限で実行しているか確認
-2. **ファイルアクセスエラー**: ウイルス対策ソフトの除外設定を確認
-3. **SetupAPI エラー**: Windows のテスト署名モードを確認
-4. **タイムアウトエラー**: テスト実行環境のパフォーマンスを確認
+1. **依存注入の確認**: SetupApiStub がDIに登録されているか
+2. **ファイルパス**: テストINFの生成・パスが正しいか
+3. **CIの制限**: セキュリティポリシーによる制限がないか
 
 ## CI/CD 環境での実行
 
@@ -104,13 +99,10 @@ dotnet test sample_win_devicedriver_inf_install.IntegrationTests --configuration
 ```yaml
 - name: Run Integration Tests
   run: dotnet test sample_win_devicedriver_inf_install.IntegrationTests --configuration Release --no-build --verbosity normal
-  # 注意: CI環境では管理者権限やSetupAPI機能に制限がある場合があります
 ```
 
 ### 制限事項
-- CI/CD環境では完全なSetupAPI機能テストに制限がある場合があります
-- 一部のテストはWindows実機環境でのみ完全に動作します
-- クラウドCI環境では管理者権限が制限される場合があります
+- CI/CD環境では管理者権限やSetupAPI機能に依存しないよう設計しているため、OSの状態変更は行われない
 
 ## テストの拡張
 
@@ -121,6 +113,7 @@ dotnet test sample_win_devicedriver_inf_install.IntegrationTests --configuration
 4. 必要に応じて新しいINFファイルテンプレートを作成
 
 ## 関連ドキュメント
+- `docs/test-strategy.md` - テスト戦略とOS環境影響の分離（必須ルール）
+- `docs/os-integration-test-spec.md` - OS環境テスト仕様（専用環境のみ）
+- `docs/test-environment-setup.md` - テスト環境構築ガイド
 - `specs/001-inf-microsoft-windows/quickstart.md` - 実際の使用シナリオ
-- `specs/001-inf-microsoft-windows/tasks.md` - 実装タスクの詳細
-- `README.md` - プロジェクト全体の概要

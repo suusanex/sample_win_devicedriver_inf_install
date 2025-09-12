@@ -81,6 +81,9 @@ public class Program
                 // CLIオプションをDIコンテナに登録
                 services.AddSingleton(options);
 
+                // SetupAPI ラッパーを登録（本番環境では実装、テスト環境ではスタブ）
+                services.AddSingleton<ISetupApiWrapper, SetupApiWrapper>();
+
                 // コアサービス
                 services.AddSingleton<WindowsApiErrorHandler>();
                 services.AddSingleton<LocalizationService>();

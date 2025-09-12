@@ -42,6 +42,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\sample_win_devicedriver_inf_install\sample_win_devicedriver_inf_install.csproj" />
+    <ProjectReference Include="..\sample_win_devicedriver_inf_install.Tests\sample_win_devicedriver_inf_install.Tests.csproj" />
   </ItemGroup>
 
 </Project>
