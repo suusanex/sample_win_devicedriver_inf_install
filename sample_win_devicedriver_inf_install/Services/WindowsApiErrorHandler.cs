@@ -108,13 +108,26 @@ public class WindowsApiErrorHandler
             0xE0000103 => "Error_KeyNotFound",
             0xE0000104 => "Error_RegistryOperationFailed",
             0xE0000108 => "Error_FileCopyFailed",
-            _ => "Error_UnknownSetupApiError"
+            _ => null
         };
 
         try
         {
-            var message = _localization.GetMessage(messageKey, errorCode.ToString("X8"));
-            return !string.IsNullOrEmpty(message) ? message : GetFallbackLocalizedMessage(errorCode, operationName);
+            if (!string.IsNullOrEmpty(messageKey))
+            {
+                // エラーメッセージリソースから取得
+                var message = _localization.GetErrorMessage(messageKey!);
+                if (!string.IsNullOrEmpty(message))
+                {
+                    return message;
+                }
+            }
+
+            // 不明なエラーコードは汎用メッセージを使用（エラーコード付き）
+            var unknown = _localization.GetFormattedErrorMessage("Error_UnknownSetupApiError", errorCode.ToString("X8"));
+            return !string.IsNullOrEmpty(unknown)
+                ? unknown
+                : GetFallbackLocalizedMessage(errorCode, operationName);
         }
         catch
         {
@@ -290,6 +303,7 @@ public class WindowsApiErrorHandler
     /// <returns>日本語メッセージ</returns>
     private string GetLocalizedMessageFromInvalidOperation(string exceptionMessage)
     {
+        // INFファイル関連
         if (exceptionMessage.Contains("INF file", StringComparison.OrdinalIgnoreCase))
         {
             if (exceptionMessage.Contains("not found", StringComparison.OrdinalIgnoreCase))
@@ -299,6 +313,14 @@ public class WindowsApiErrorHandler
                 return "INFファイルの形式が無効です。[Version]セクションを確認してください。";
             if (exceptionMessage.Contains("section", StringComparison.OrdinalIgnoreCase))
                 return "指定されたセクションがINFファイルに見つかりません。";
+        }
+
+        // セクション未検出（INF section/Section not found等の一般表現も拾う）
+        if (exceptionMessage.Contains("section not found", StringComparison.OrdinalIgnoreCase) ||
+            exceptionMessage.Contains("INF section", StringComparison.OrdinalIgnoreCase) ||
+            (exceptionMessage.Contains("section", StringComparison.OrdinalIgnoreCase) && exceptionMessage.Contains("not found", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "指定されたセクションがINFファイルに見つかりません。";
         }
         
         if (exceptionMessage.Contains("registry", StringComparison.OrdinalIgnoreCase) ||

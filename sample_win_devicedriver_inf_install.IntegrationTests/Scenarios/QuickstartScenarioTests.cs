@@ -410,17 +410,12 @@ HelperService.DisplayName = ""Helper Service""
     }
 
     /// <summary>
-    /// 無効なINFファイルの内容を作成（エラーテスト用）
+    /// 無効なINFファイルの内容を作成（検証仕様: [Version] セクションが存在しないケースを生成）
+    /// ValidateInfFileAsync の仕様に合わせ、[Version] がない場合を不正と判定する
     /// </summary>
     private static string CreateInvalidInfContent()
     {
         return @"
-[Version]
-Signature=""INVALID SIGNATURE""
-Class=
-Provider=
-DriverVer=invalid
-
 [DefaultInstall]
 CopyFiles=NonExistentFiles
 

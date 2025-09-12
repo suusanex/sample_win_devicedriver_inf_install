@@ -129,13 +129,15 @@ public class InstallationResult
     /// <param name="sectionName">セクション名</param>
     /// <param name="executionTime">実行時間</param>
     /// <param name="technicalMessage">技術的メッセージ</param>
+    /// <param name="installedPackage">関連するドライバパッケージ（失敗時でもパス等の参照に使用）</param>
     /// <returns>失敗した InstallationResult</returns>
     public static InstallationResult Failure(
         string sessionId,
         ApiErrorInfo errorInfo,
         string? sectionName = null,
         TimeSpan? executionTime = null,
-        string? technicalMessage = null)
+        string? technicalMessage = null,
+        DriverPackage? installedPackage = null)
     {
         return new InstallationResult
         {
@@ -146,7 +148,8 @@ public class InstallationResult
             ExecutionTime = executionTime ?? TimeSpan.Zero,
             StartTime = DateTime.UtcNow.Subtract(executionTime ?? TimeSpan.Zero),
             EndTime = DateTime.UtcNow,
-            TechnicalMessage = technicalMessage ?? errorInfo.SystemMessage
+            TechnicalMessage = technicalMessage ?? errorInfo.SystemMessage,
+            InstalledPackage = installedPackage
         };
     }
 

@@ -182,7 +182,9 @@ public class DriverInstallationService : IDriverInstallationService
                 sessionId: session.SessionId,
                 errorInfo: errorInfo,
                 sectionName: sectionName,
-                executionTime: executionTime
+                executionTime: executionTime,
+                technicalMessage: null,
+                installedPackage: driverPackage // keep InfPath available on failure
             );
 
             // ログエントリを結果に含める
@@ -245,8 +247,20 @@ public class DriverInstallationService : IDriverInstallationService
     #region Private Helper Methods
 
     /// <summary>
-    /// INF ファイルの基本検証
+    /// INF ファイルの基本検証を行います。
+    /// 仕様（この実装に準拠）:
+    /// - 検証対象は次の2点のみです。
+    ///   1) 指定パスにファイルが存在すること。
+    ///   2) ファイル内容に文字列 "[Version]" が含まれていること（大文字小文字は無視）。
+    /// - 上記以外（例: [Version] セクション内の Signature 值や DriverVer 形式など）の妥当性は検証しません。
+    /// - 条件を満たさない場合は InvalidOperationException（[Version] 欠落）または FileNotFoundException（ファイル不存在）を投げます。
+    /// - ログ: 失敗時は Validation カテゴリでエラーログ、成功時は情報ログを出力します。
     /// </summary>
+    /// <param name="infFilePath">INF ファイルのフルパス</param>
+    /// <param name="correlationId">相関ID（セッションID）</param>
+    /// <param name="cancellationToken">キャンセレーショントークン</param>
+    /// <exception cref="FileNotFoundException">ファイルが存在しない場合</exception>
+    /// <exception cref="InvalidOperationException">[Version] セクションが見つからない場合</exception>
     private async Task ValidateInfFileAsync(string infFilePath, string correlationId, CancellationToken cancellationToken)
     {
         if (!File.Exists(infFilePath))
@@ -279,44 +293,51 @@ public class DriverInstallationService : IDriverInstallationService
     }
 
     /// <summary>
-    /// INF ファイルを開く
+    /// INF ファイルを開く（スタブ由来の一時的エラーに対する簡易リトライを含む）
     /// </summary>
     private async Task<IntPtr> OpenInfFileAsync(string infFilePath, string correlationId, CancellationToken cancellationToken)
     {
-        return await Task.Run(() =>
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IntPtr AttemptOpen()
         {
-            var infHandle = _setupApiWrapper.SetupOpenInfFile(
+            return _setupApiWrapper.SetupOpenInfFile(
                 infFilePath,
                 null, // InfClass (auto-detect)
                 SetupApi.INF_STYLE_WIN4,
-                out uint errorLine
+                out uint _
             );
+        }
+
+        var infHandle = AttemptOpen();
+
+        if (infHandle == SetupApi.INVALID_HANDLE_VALUE)
+        {
+            // 1回だけリトライ（特に _lastError が 0 の場合、前回のエラー残骸による失敗の可能性）
+            var firstError = _errorHandler.GetLastError("SetupOpenInfFile");
+            if (firstError.ErrorCode == 0)
+            {
+                infHandle = AttemptOpen();
+            }
 
             if (infHandle == SetupApi.INVALID_HANDLE_VALUE)
             {
-                var error = _errorHandler.GetLastError("SetupOpenInfFile", $"Error line: {errorLine}");
-                
-                Task.Run(async () => 
-                {
-                    await _installationLogger.LogErrorAsync(
-                        $"Failed to open INF file: {error.SystemMessage}",
-                        "API",
-                        correlationId);
-                });
+                var error = firstError.ErrorCode != 0 ? firstError : _errorHandler.GetLastError("SetupOpenInfFile");
+                await _installationLogger.LogErrorAsync(
+                    $"Failed to open INF file: {error.SystemMessage}",
+                    "API",
+                    correlationId);
 
                 throw new InvalidOperationException($"Failed to open INF file: {error.SystemMessage}");
             }
+        }
 
-            Task.Run(async () => 
-            {
-                await _installationLogger.LogInformationAsync(
-                    $"Successfully opened INF file: {infFilePath}",
-                    "API",
-                    correlationId);
-            });
+        await _installationLogger.LogInformationAsync(
+            $"Successfully opened INF file: {infFilePath}",
+            "API",
+            correlationId);
 
-            return infHandle;
-        }, cancellationToken);
+        return infHandle;
     }
 
     /// <summary>
@@ -324,81 +345,67 @@ public class DriverInstallationService : IDriverInstallationService
     /// </summary>
     private async Task InstallFromInfSectionAsync(IntPtr infHandle, string sectionName, uint flags, string correlationId, CancellationToken cancellationToken)
     {
-        await Task.Run(() =>
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // まずセクションの存在確認を行う
+        bool sectionExists = _setupApiWrapper.SetupFindFirstLine(
+            infHandle,
+            sectionName,
+            null, // Key (any line in section)
+            out SetupApi.INFCONTEXT context
+        );
+
+        if (!sectionExists)
         {
-            // まずセクションの存在確認を行う
-            bool sectionExists = _setupApiWrapper.SetupFindFirstLine(
-                infHandle,
-                sectionName,
-                null, // Key (any line in section)
-                out SetupApi.INFCONTEXT context
-            );
+            await _installationLogger.LogErrorAsync(
+                $"Section '{sectionName}' not found in INF file",
+                "API",
+                correlationId);
 
-            if (!sectionExists)
-            {
-                Task.Run(async () => 
-                {
-                    await _installationLogger.LogErrorAsync(
-                        $"Section '{sectionName}' not found in INF file",
-                        "API",
-                        correlationId);
-                });
+            throw new InvalidOperationException($"Section '{sectionName}' not found in INF file");
+        }
 
-                throw new InvalidOperationException($"Section '{sectionName}' not found in INF file");
-            }
+        // デフォルトフラグを設定（全ての処理を実行）
+        if (flags == 0)
+            flags = SetupApi.SPINST_ALL;
 
-            // デフォルトフラグを設定（全ての処理を実行）
-            if (flags == 0)
-                flags = SetupApi.SPINST_ALL;
+        // テストが期待するログメッセージを記録
+        await _installationLogger.LogInformationAsync(
+            $"Installing from section '{sectionName}' using SetupInstallFromInfSection",
+            "API",
+            correlationId);
 
-            // テストが期待するログメッセージを記録
-            Task.Run(async () => 
-            {
-                await _installationLogger.LogInformationAsync(
-                    $"Installing from section '{sectionName}' using SetupInstallFromInfSection",
-                    "API",
-                    correlationId);
-            });
+        bool success = _setupApiWrapper.SetupInstallFromInfSection(
+            IntPtr.Zero, // Owner (no parent window)
+            infHandle,
+            sectionName,
+            flags,
+            IntPtr.Zero, // RelativeKeyRoot (default)
+            null, // SourceRootPath (use INF directory)
+            0, // CopyFlags
+            IntPtr.Zero, // MsgHandler
+            IntPtr.Zero, // Context
+            IntPtr.Zero, // DeviceInfoSet
+            IntPtr.Zero  // DeviceInfoData
+        );
 
-            bool success = _setupApiWrapper.SetupInstallFromInfSection(
-                IntPtr.Zero, // Owner (no parent window)
-                infHandle,
-                sectionName,
-                flags,
-                IntPtr.Zero, // RelativeKeyRoot (default)
-                null, // SourceRootPath (use INF directory)
-                0, // CopyFlags
-                IntPtr.Zero, // MsgHandler
-                IntPtr.Zero, // Context
-                IntPtr.Zero, // DeviceInfoSet
-                IntPtr.Zero  // DeviceInfoData
-            );
+        if (!success)
+        {
+            var error = _errorHandler.GetLastError("SetupInstallFromInfSection", $"Section: {sectionName}");
+            await _installationLogger.LogErrorAsync(
+                $"Failed to install from INF section '{sectionName}': {error.SystemMessage}",
+                "API",
+                correlationId);
 
-            if (!success)
-            {
-                var error = _errorHandler.GetLastError("SetupInstallFromInfSection", $"Section: {sectionName}");
-                
-                Task.Run(async () => 
-                {
-                    await _installationLogger.LogErrorAsync(
-                        $"Failed to install from INF section '{sectionName}': {error.SystemMessage}",
-                        "API",
-                        correlationId);
-                });
+            throw new InvalidOperationException($"Failed to install from INF section '{sectionName}': {error.SystemMessage}");
+        }
 
-                throw new InvalidOperationException($"Failed to install from INF section '{sectionName}': {error.SystemMessage}");
-            }
+        await _installationLogger.LogInformationAsync(
+            $"Successfully installed from INF section: {sectionName}",
+            "API",
+            correlationId);
 
-            Task.Run(async () => 
-            {
-                await _installationLogger.LogInformationAsync(
-                    $"Successfully installed from INF section: {sectionName}",
-                    "API",
-                    correlationId);
-            });
-
-            _logger.LogDebug("Successfully installed from INF section: {SectionName}", sectionName);
-        }, cancellationToken);
+        _logger.LogDebug("Successfully installed from INF section: {SectionName}", sectionName);
     }
 
     /// <summary>
@@ -406,77 +413,64 @@ public class DriverInstallationService : IDriverInstallationService
     /// </summary>
     private async Task InstallServicesFromInfAsync(IntPtr infHandle, string baseSectionName, string correlationId, CancellationToken cancellationToken)
     {
-        await Task.Run(() =>
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // .Services セクションの存在確認
+        var servicesSectionName = $"{baseSectionName}.Services";
+        
+        bool servicesExist = _setupApiWrapper.SetupFindFirstLine(
+            infHandle,
+            servicesSectionName,
+            null, // Key (any line in section)
+            out SetupApi.INFCONTEXT context
+        );
+
+        if (servicesExist)
         {
-            // .Services セクションの存在確認
-            var servicesSectionName = $"{baseSectionName}.Services";
-            
-            bool servicesExist = _setupApiWrapper.SetupFindFirstLine(
+            await _installationLogger.LogInformationAsync(
+                $"Found Services section: {servicesSectionName}",
+                "API",
+                correlationId);
+
+            _logger.LogDebug("Found Services section: {ServicesSectionName}", servicesSectionName);
+
+            bool success = _setupApiWrapper.SetupInstallServicesFromInfSection(
                 infHandle,
                 servicesSectionName,
-                null, // Key (any line in section)
-                out SetupApi.INFCONTEXT context
+                0 // Flags (default)
             );
 
-            if (servicesExist)
+            if (!success)
             {
-                Task.Run(async () => 
-                {
-                    await _installationLogger.LogInformationAsync(
-                        $"Found Services section: {servicesSectionName}",
-                        "API",
-                        correlationId);
-                });
+                var error = _errorHandler.GetLastError("SetupInstallServicesFromInfSection", $"Section: {servicesSectionName}");
+                // Services セクションの失敗は警告として扱う（致命的ではない）
+                await _installationLogger.LogWarningAsync(
+                    $"Failed to install services from section '{servicesSectionName}': {error.SystemMessage}",
+                    "API",
+                    correlationId);
 
-                _logger.LogDebug("Found Services section: {ServicesSectionName}", servicesSectionName);
-
-                bool success = _setupApiWrapper.SetupInstallServicesFromInfSection(
-                    infHandle,
-                    servicesSectionName,
-                    0 // Flags (default)
-                );
-
-                if (!success)
-                {
-                    var error = _errorHandler.GetLastError("SetupInstallServicesFromInfSection", $"Section: {servicesSectionName}");
-                    // Services セクションの失敗は警告として扱う（致命的ではない）
-                    Task.Run(async () => 
-                    {
-                        await _installationLogger.LogWarningAsync(
-                            $"Failed to install services from section '{servicesSectionName}': {error.SystemMessage}",
-                            "API",
-                            correlationId);
-                    });
-
-                    _logger.LogWarning("Failed to install services from section '{ServicesSectionName}': {ErrorMessage}", 
-                        servicesSectionName, error.SystemMessage);
-                }
-                else
-                {
-                    Task.Run(async () => 
-                    {
-                        await _installationLogger.LogInformationAsync(
-                            $"Successfully installed services from section: {servicesSectionName}",
-                            "API",
-                            correlationId);
-                    });
-
-                    _logger.LogDebug("Successfully installed services from section: {ServicesSectionName}", servicesSectionName);
-                }
+                _logger.LogWarning("Failed to install services from section '{ServicesSectionName}': {ErrorMessage}", 
+                    servicesSectionName, error.SystemMessage);
             }
             else
             {
-                Task.Run(async () => 
-                {
-                    await _installationLogger.LogInformationAsync(
-                        $"Services section not found for: {baseSectionName}",
-                        "API",
-                        correlationId);
-                });
+                await _installationLogger.LogInformationAsync(
+                    $"Successfully installed services from section: {servicesSectionName}",
+                    "API",
+                    correlationId);
 
-                _logger.LogDebug("No Services section found for: {BaseSectionName}", baseSectionName);
+                _logger.LogDebug("Successfully installed services from section: {ServicesSectionName}", servicesSectionName);
             }
-        }, cancellationToken);
+        }
+        else
+        {
+            await _installationLogger.LogInformationAsync(
+                $"Services section not found for: {baseSectionName}",
+                "API",
+                correlationId);
+
+            _logger.LogDebug("No Services section found for: {BaseSectionName}", baseSectionName);
+        }
     }
 
     #endregion

@@ -73,8 +73,19 @@ public class InstallationLogger : IInstallationLogger, IDisposable
                 return existingList;
             });
 
-        // ファイルへの記録
-        await WriteToFileAsync(logEntry, cancellationToken);
+        // ファイルへの記録（失敗しても処理を継続する）
+        try
+        {
+            await WriteToFileAsync(logEntry, cancellationToken);
+        }
+        catch (IOException ioEx)
+        {
+            await _msLogger.LogWarningAsync($"Failed to write log to file due to IO error: {ioEx.Message}");
+        }
+        catch (UnauthorizedAccessException uaEx)
+        {
+            await _msLogger.LogWarningAsync($"Failed to write log to file due to access error: {uaEx.Message}");
+        }
     }
 
     /// <summary>
@@ -236,15 +247,39 @@ public class InstallationLogger : IInstallationLogger, IDisposable
         var fileName = $"installation_{DateTime.UtcNow:yyyy-MM-dd}.log";
         var filePath = Path.Combine(_logDirectory, fileName);
 
-        // ファイルローテーション実行
+        // ファイルローテーション実行（ローテーション中はロック）
         await RotateLogFileIfNeededAsync(filePath, cancellationToken);
 
-        var logLine = FormatLogLine(logEntry);
+        var logLine = FormatLogLine(logEntry) + Environment.NewLine;
 
-        lock (_fileLock)
+        // マルチインスタンス間での共有を許可しつつ、書き込みはリトライ
+        const int maxRetries = 3;
+        const int retryDelayMs = 25;
+        for (int attempt = 0; attempt < maxRetries; attempt++)
         {
-            File.AppendAllText(filePath, logLine + Environment.NewLine);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                // 共有読み書きを許可することで、他のテストからのアクセス競合を低減
+                lock (_fileLock)
+                {
+                    using var fs = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                    using var writer = new StreamWriter(fs);
+                    writer.Write(logLine);
+                }
+                return;
+            }
+            catch (IOException) when (attempt < maxRetries - 1)
+            {
+                await Task.Delay(retryDelayMs, cancellationToken);
+                continue;
+            }
         }
+
+        // ここまで到達した場合、最後の試行で例外が発生している
+        // 呼び出し元で補足され、警告ログに落ちる
+        throw new IOException($"Failed to write log after {maxRetries} attempts: {filePath}");
     }
 
     /// <summary>
@@ -275,7 +310,7 @@ public class InstallationLogger : IInstallationLogger, IDisposable
                     }
                     else
                     {
-                        File.Move(oldFile, newFile);
+                        File.Move(oldFile, newFile, overwrite: true);
                     }
                 }
             }
@@ -283,7 +318,7 @@ public class InstallationLogger : IInstallationLogger, IDisposable
             // 現在のファイルを .1 にリネーム
             if (File.Exists(filePath))
             {
-                File.Move(filePath, $"{filePath}.1");
+                File.Move(filePath, $"{filePath}.1", overwrite: true);
             }
         }
 
