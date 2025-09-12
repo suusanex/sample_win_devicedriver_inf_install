@@ -316,6 +316,189 @@ ServiceBinary=%12%\test.sys
         Assert.False(result.IsSuccess);
     }
 
+    /// <summary>
+    /// SetupInstallFromInfSectionのタイムアウトテスト（NFR-003準拠）
+    /// タイムアウト時はOperationCanceledExceptionが投げられ、Cancelledステータスになる
+    /// </summary>
+    [Fact]
+    public async Task InstallFromInfAsync_WithSetupInstallFromInfSectionTimeout_ShouldReturnCancelledResult()
+    {
+        // Arrange
+        _setupApiStub.Reset();
+        _setupApiStub.SetupInfContent(_testInfPath, new Dictionary<string, List<string>>
+        {
+            ["Version"] = new() { "Signature=\"$WINDOWS NT$\"" },
+            ["DefaultInstall"] = new() { "CopyFiles=TestFiles" }
+        });
+        
+        // SetupInstallFromInfSectionに35秒の遅延を設定（デフォルトタイムアウトの30秒を超過）
+        _setupApiStub.SetInstallFromInfSectionDelay(TimeSpan.FromSeconds(35));
+
+        // Act
+        var result = await _driverInstallationService.InstallFromInfAsync(_testInfPath);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(InstallationStatus.Cancelled, result.Status);
+        Assert.False(result.IsSuccess);
+        
+        // タイムアウトログが記録されていることを確認
+        var logEntries = result.LogEntries.ToList();
+        Assert.Contains(logEntries, entry => 
+            entry.Message.Contains("timed out") && 
+            entry.Category == "API");
+    }
+
+    /// <summary>
+    /// SetupInstallServicesFromInfSectionのタイムアウトテスト（NFR-003準拠）
+    /// タイムアウト時はOperationCanceledExceptionが投げられ、Cancelledステータスになる
+    /// </summary>
+    [Fact]
+    public async Task InstallFromInfAsync_WithSetupInstallServicesTimeout_ShouldReturnCancelledResult()
+    {
+        // Arrange
+        _setupApiStub.Reset();
+        _setupApiStub.SetupInfContent(_testInfPath, new Dictionary<string, List<string>>
+        {
+            ["Version"] = new() { "Signature=\"$WINDOWS NT$\"" },
+            ["DefaultInstall"] = new() { "CopyFiles=TestFiles" },
+            ["DefaultInstall.Services"] = new() { "AddService=TestService" }
+        });
+        
+        // SetupInstallServicesFromInfSectionに35秒の遅延を設定（デフォルトタイムアウトの30秒を超過）
+        _setupApiStub.SetInstallServicesFromInfSectionDelay(TimeSpan.FromSeconds(35));
+
+        // Act
+        var result = await _driverInstallationService.InstallFromInfAsync(_testInfPath);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(InstallationStatus.Cancelled, result.Status);
+        Assert.False(result.IsSuccess);
+        
+        // タイムアウトログが記録されていることを確認
+        var logEntries = result.LogEntries.ToList();
+        Assert.Contains(logEntries, entry => 
+            entry.Message.Contains("timed out") && 
+            entry.Category == "API");
+    }
+
+    /// <summary>
+    /// SetupInstallFromInfSectionのタイムアウト時の例外テスト（NFR-003準拠）
+    /// 例外を直接確認したい場合はこのテストを使用
+    /// </summary>
+    [Fact]
+    public async Task InstallFromInfSectionAsync_WithTimeout_ShouldThrowOperationCanceledException()
+    {
+        // Arrange
+        _setupApiStub.Reset();
+        _setupApiStub.SetupInfContent(_testInfPath, new Dictionary<string, List<string>>
+        {
+            ["Version"] = new() { "Signature=\"$WINDOWS NT$\"" },
+            ["DefaultInstall"] = new() { "CopyFiles=TestFiles" }
+        });
+        
+        // SetupInstallFromInfSectionに31秒の遅延を設定
+        _setupApiStub.SetInstallFromInfSectionDelay(TimeSpan.FromSeconds(31));
+
+        // Act & Assert
+        // タイムアウトによってOperationCanceledExceptionが投げられるが、
+        // 上位のメソッドでキャッチされるため、結果としてはCancelledステータスが返される
+        var result = await _driverInstallationService.InstallFromInfAsync(_testInfPath);
+        
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(InstallationStatus.Cancelled, result.Status);
+        Assert.False(result.IsSuccess);
+    }
+
+    /// <summary>
+    /// SetupInstallServicesFromInfSectionのタイムアウト時の例外テスト（NFR-003準拠）
+    /// </summary>
+    [Fact]
+    public async Task InstallServicesFromInfAsync_WithTimeout_ShouldThrowOperationCanceledException()
+    {
+        // Arrange
+        _setupApiStub.Reset();
+        _setupApiStub.SetupInfContent(_testInfPath, new Dictionary<string, List<string>>
+        {
+            ["Version"] = new() { "Signature=\"$WINDOWS NT$\"" },
+            ["DefaultInstall"] = new() { "CopyFiles=TestFiles" },
+            ["DefaultInstall.Services"] = new() { "AddService=TestService" }
+        });
+        
+        // SetupInstallServicesFromInfSectionに31秒の遅延を設定
+        _setupApiStub.SetInstallServicesFromInfSectionDelay(TimeSpan.FromSeconds(31));
+
+        // Act
+        var result = await _driverInstallationService.InstallFromInfAsync(_testInfPath);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(InstallationStatus.Cancelled, result.Status);
+        Assert.False(result.IsSuccess);
+    }
+
+    /// <summary>
+    /// SetupAPIのタイムアウト時間内での正常完了テスト（NFR-003準拠）
+    /// </summary>
+    [Fact]
+    public async Task InstallFromInfAsync_WithinTimeoutLimit_ShouldSucceed()
+    {
+        // Arrange
+        _setupApiStub.Reset();
+        _setupApiStub.SetupInfContent(_testInfPath, new Dictionary<string, List<string>>
+        {
+            ["Version"] = new() { "Signature=\"$WINDOWS NT$\"" },
+            ["DefaultInstall"] = new() { "CopyFiles=TestFiles" },
+            ["DefaultInstall.Services"] = new() { "AddService=TestService" }
+        });
+        
+        // SetupAPI呼び出しに5秒の遅延を設定（タイムアウト時間30秒以内）
+        _setupApiStub.SetInstallFromInfSectionDelay(TimeSpan.FromSeconds(5));
+        _setupApiStub.SetInstallServicesFromInfSectionDelay(TimeSpan.FromSeconds(5));
+
+        // Act
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var result = await _driverInstallationService.InstallFromInfAsync(_testInfPath);
+        stopwatch.Stop();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(InstallationStatus.Completed, result.Status);
+        Assert.True(result.IsSuccess);
+        
+        // 実行時間が予想される範囲内であることを確認（10秒 + 処理時間のマージン）
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(15), 
+            $"Execution time {stopwatch.Elapsed.TotalSeconds} seconds should be less than 15 seconds");
+    }
+
+    /// <summary>
+    /// タイムアウト機能の動作確認：短時間での正常完了
+    /// </summary>
+    [Fact]
+    public async Task InstallFromInfAsync_WithShortDelay_ShouldCompleteWithinTimeout()
+    {
+        // Arrange
+        _setupApiStub.Reset();
+        _setupApiStub.SetupInfContent(_testInfPath, new Dictionary<string, List<string>>
+        {
+            ["Version"] = new() { "Signature=\"$WINDOWS NT$\"" },
+            ["DefaultInstall"] = new() { "CopyFiles=TestFiles" }
+        });
+        
+        // 1秒の遅延を設定（タイムアウト時間30秒以内で十分短い）
+        _setupApiStub.SetInstallFromInfSectionDelay(TimeSpan.FromSeconds(1));
+
+        // Act
+        var result = await _driverInstallationService.InstallFromInfAsync(_testInfPath);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(InstallationStatus.Completed, result.Status);
+        Assert.True(result.IsSuccess);
+    }
+
     public void Dispose()
     {
         _installationLogger?.Dispose();

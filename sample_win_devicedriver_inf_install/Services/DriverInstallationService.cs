@@ -19,6 +19,9 @@ public class DriverInstallationService : IDriverInstallationService
     private readonly ISetupApiWrapper _setupApiWrapper;
     private readonly ConcurrentDictionary<string, InstallationSession> _activeSessions;
 
+    // SetupAPI呼び出しのデフォルトタイムアウト（NFR-003準拠）
+    private static readonly TimeSpan DefaultSetupApiTimeout = TimeSpan.FromSeconds(30);
+
     /// <summary>
     /// コンストラクタ
     /// </summary>
@@ -341,7 +344,7 @@ public class DriverInstallationService : IDriverInstallationService
     }
 
     /// <summary>
-    /// 指定セクションからのインストール実行
+    /// 指定セクションからのインストール実行（タイムアウト制御付き）
     /// </summary>
     private async Task InstallFromInfSectionAsync(IntPtr infHandle, string sectionName, uint flags, string correlationId, CancellationToken cancellationToken)
     {
@@ -375,19 +378,37 @@ public class DriverInstallationService : IDriverInstallationService
             "API",
             correlationId);
 
-        bool success = _setupApiWrapper.SetupInstallFromInfSection(
-            IntPtr.Zero, // Owner (no parent window)
-            infHandle,
-            sectionName,
-            flags,
-            IntPtr.Zero, // RelativeKeyRoot (default)
-            null, // SourceRootPath (use INF directory)
-            0, // CopyFlags
-            IntPtr.Zero, // MsgHandler
-            IntPtr.Zero, // Context
-            IntPtr.Zero, // DeviceInfoSet
-            IntPtr.Zero  // DeviceInfoData
-        );
+        // SetupAPI呼び出しをタイムアウト制御可能な非同期実行でラップ（NFR-003準拠）
+        // Task.WaitAsyncを使用してタイムアウト制御を実現
+        bool success;
+        try
+        {
+            var setupApiTask = Task.Run(() => _setupApiWrapper.SetupInstallFromInfSection(
+                IntPtr.Zero, // Owner (no parent window)
+                infHandle,
+                sectionName,
+                flags,
+                IntPtr.Zero, // RelativeKeyRoot (default)
+                null, // SourceRootPath (use INF directory)
+                0, // CopyFlags
+                IntPtr.Zero, // MsgHandler
+                IntPtr.Zero, // Context
+                IntPtr.Zero, // DeviceInfoSet
+                IntPtr.Zero  // DeviceInfoData
+            ));
+
+            success = await setupApiTask.WaitAsync(DefaultSetupApiTimeout, cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            // タイムアウトが発生した場合
+            await _installationLogger.LogErrorAsync(
+                $"SetupInstallFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds for section '{sectionName}'",
+                "API",
+                correlationId);
+
+            throw new OperationCanceledException($"SetupInstallFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds");
+        }
 
         if (!success)
         {
@@ -409,7 +430,7 @@ public class DriverInstallationService : IDriverInstallationService
     }
 
     /// <summary>
-    /// Services セクションの自動検出と条件付きインストール
+    /// Services セクションの自動検出と条件付きインストール（タイムアウト制御付き）
     /// </summary>
     private async Task InstallServicesFromInfAsync(IntPtr infHandle, string baseSectionName, string correlationId, CancellationToken cancellationToken)
     {
@@ -434,23 +455,40 @@ public class DriverInstallationService : IDriverInstallationService
 
             _logger.LogDebug("Found Services section: {ServicesSectionName}", servicesSectionName);
 
-            bool success = _setupApiWrapper.SetupInstallServicesFromInfSection(
-                infHandle,
-                servicesSectionName,
-                0 // Flags (default)
-            );
+            // SetupAPI呼び出しをタイムアウト制御可能な非同期実行でラップ（NFR-003準拠）
+            // Task.WaitAsyncを使用してタイムアウト制御を実現
+            bool success;
+            try
+            {
+                var setupApiTask = Task.Run(() => _setupApiWrapper.SetupInstallServicesFromInfSection(
+                    infHandle,
+                    servicesSectionName,
+                    0 // Flags (default)
+                ));
+
+                success = await setupApiTask.WaitAsync(DefaultSetupApiTimeout, cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                // タイムアウトが発生した場合（Services セクションも致命的エラーとして扱う）
+                await _installationLogger.LogErrorAsync(
+                    $"SetupInstallServicesFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds for section '{servicesSectionName}'",
+                    "API",
+                    correlationId);
+
+                throw new OperationCanceledException($"SetupInstallServicesFromInfSection timed out after {DefaultSetupApiTimeout.TotalSeconds} seconds");
+            }
 
             if (!success)
             {
                 var error = _errorHandler.GetLastError("SetupInstallServicesFromInfSection", $"Section: {servicesSectionName}");
-                // Services セクションの失敗は警告として扱う（致命的ではない）
-                await _installationLogger.LogWarningAsync(
+                // Services セクションの失敗も致命的エラーとして扱う
+                await _installationLogger.LogErrorAsync(
                     $"Failed to install services from section '{servicesSectionName}': {error.SystemMessage}",
                     "API",
                     correlationId);
 
-                _logger.LogWarning("Failed to install services from section '{ServicesSectionName}': {ErrorMessage}", 
-                    servicesSectionName, error.SystemMessage);
+                throw new InvalidOperationException($"Failed to install services from section '{servicesSectionName}': {error.SystemMessage}");
             }
             else
             {

@@ -27,6 +27,50 @@ INF ファイルの宣言的インストール（全デバイス対象フィル�
 - **エラーハンドリング**: SetupAPI 戻り値 + GetLastError を使用
 - **実行フロー**: コンソール実行 → 自動処理 → 成功/エラー結果表示 → 終了
 
+## NFR-003実装詳細（タイムアウト制御）
+
+### 背景
+spec.md のNFR-003「インストールは合理的な時間制限内で完了し、超過時はタイムアウトとしてエラーにしなければならない」を実現するための実装詳細。
+
+### 技術的制約
+- SetupAPI呼び出し（SetupInstallFromInfSection、SetupInstallServicesFromInfSection）は同期実行でキャンセル不可
+- Task.RunにCancellationTokenを渡しても、内部の同期処理が長時間ブロックされる場合はタイムアウト制御が効かない
+
+### 実装方針
+```csharp
+// Task.WaitAsyncを使用した適切なタイムアウト制御
+var setupApiTask = Task.Run(() => _setupApiWrapper.SetupInstallFromInfSection(...));
+bool success = await setupApiTask.WaitAsync(DefaultSetupApiTimeout, cancellationToken);
+```
+
+### 具体的な実装要件
+- **デフォルトタイムアウト値**: 30秒（`TimeSpan.FromSeconds(30)`）
+- **構成可能性**: 定数として定義し、将来的に設定ファイル対応可能
+- **タイムアウト例外**: `TimeoutException`をキャッチして`OperationCanceledException`として再throw
+- **適用対象**:
+  - `SetupInstallFromInfSection`呼び出し
+  - `SetupInstallServicesFromInfSection`呼び出し
+- **エラーログ**: タイムアウト発生時は"API"カテゴリでエラーログ出力
+- **クリーンアップ**: 適切なリソース解放（INFファイルハンドル等）
+
+### 実装パターン
+```csharp
+// SetupAPI呼び出しのデフォルトタイムアウト（NFR-003準拠）
+private static readonly TimeSpan DefaultSetupApiTimeout = TimeSpan.FromSeconds(30);
+
+// タイムアウト制御付きSetupAPI呼び出し
+try
+{
+    var setupApiTask = Task.Run(() => _setupApiWrapper.SetupInstallFromInfSection(...));
+    success = await setupApiTask.WaitAsync(DefaultSetupApiTimeout, cancellationToken);
+}
+catch (TimeoutException)
+{
+    await _installationLogger.LogErrorAsync("SetupAPI timed out", "API", correlationId);
+    throw new OperationCanceledException("SetupAPI timed out after 30 seconds");
+}
+```
+
 ## 基本原則チェック: 初期
 **状態**: 合格 ✓
 

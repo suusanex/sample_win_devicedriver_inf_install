@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using sample_win_devicedriver_inf_install.Contracts;
 using sample_win_devicedriver_inf_install.Native;
 
@@ -16,6 +17,10 @@ public class SetupApiStub : ISetupApiWrapper
     private IntPtr _nextHandle = new IntPtr(1000);
     private uint _lastError = 0;
     private readonly Dictionary<string, Dictionary<string, List<string>>> _infSections = new();
+    
+    // タイムアウトテスト用の設定
+    private TimeSpan _installFromInfSectionDelay = TimeSpan.Zero;
+    private TimeSpan _installServicesFromInfSectionDelay = TimeSpan.Zero;
 
     /// <summary>
     /// スタブ設定: INFファイルの内容を設定
@@ -38,6 +43,24 @@ public class SetupApiStub : ISetupApiWrapper
     }
 
     /// <summary>
+    /// スタブ設定: SetupInstallFromInfSectionの遅延時間を設定（タイムアウトテスト用）
+    /// </summary>
+    /// <param name="delay">遅延時間</param>
+    public void SetInstallFromInfSectionDelay(TimeSpan delay)
+    {
+        _installFromInfSectionDelay = delay;
+    }
+
+    /// <summary>
+    /// スタブ設定: SetupInstallServicesFromInfSectionの遅延時間を設定（タイムアウトテスト用）
+    /// </summary>
+    /// <param name="delay">遅延時間</param>
+    public void SetInstallServicesFromInfSectionDelay(TimeSpan delay)
+    {
+        _installServicesFromInfSectionDelay = delay;
+    }
+
+    /// <summary>
     /// スタブ設定: リセット
     /// </summary>
     public void Reset()
@@ -46,6 +69,8 @@ public class SetupApiStub : ISetupApiWrapper
         _lastError = 0;
         _infSections.Clear();
         _nextHandle = new IntPtr(1000);
+        _installFromInfSectionDelay = TimeSpan.Zero;
+        _installServicesFromInfSectionDelay = TimeSpan.Zero;
     }
 
     public IntPtr SetupOpenInfFile(string fileName, string? infClass, uint infStyle, out uint errorLine)
@@ -91,6 +116,12 @@ public class SetupApiStub : ISetupApiWrapper
         IntPtr deviceInfoSet,
         IntPtr deviceInfoData)
     {
+        // タイムアウトテスト用の遅延をシミュレート
+        if (_installFromInfSectionDelay > TimeSpan.Zero)
+        {
+            Thread.Sleep(_installFromInfSectionDelay);
+        }
+
         if (_lastError != 0)
         {
             var error = _lastError;
@@ -117,6 +148,12 @@ public class SetupApiStub : ISetupApiWrapper
 
     public bool SetupInstallServicesFromInfSection(IntPtr infHandle, string sectionName, uint flags)
     {
+        // タイムアウトテスト用の遅延をシミュレート
+        if (_installServicesFromInfSectionDelay > TimeSpan.Zero)
+        {
+            Thread.Sleep(_installServicesFromInfSectionDelay);
+        }
+
         if (_lastError != 0)
         {
             var error = _lastError;
