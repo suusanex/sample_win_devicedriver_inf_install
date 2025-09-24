@@ -68,8 +68,8 @@ sample_win_devicedriver_inf_install.exe --dry-run --inf driver.inf
 
 ### ログファイル場所
 ```
-%TEMP%\DriverInstaller\Logs\installation-{SessionId}.log
-%TEMP%\DriverInstaller\Logs\error-{Date}.log
+{アプリケーションディレクトリ}\logs\installation-{DateTime}.log
+{アプリケーションディレクトリ}\logs\session-{SessionId}.log
 ```
 
 ### よくある問題と解決策
