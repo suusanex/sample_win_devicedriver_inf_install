@@ -14,6 +14,15 @@ When amending the constitution (`/memory/constitution.md`), ensure all dependent
 
 ### Article-specific updates:
 
+#### 憲法: テストの原則（UnitTest は外部環境を変更しない）
+
+- [ ] **ユニット**：外部API直呼びをしていない（参照は**ポート経由のみ**）。
+- [ ] **ユニット**：**Test Double を注入**している（DI／テスト用構成が存在）。
+- [ ] **ユニット**：ファイルIOはテンポラリ以下のみ。ネットワーク・レジストリ・時刻変更・プロセス起動は**不使用**。
+- [ ] **結合**：実環境を使う理由が**spec／plan に明記**され、**テスト手順・隔離・ロールバック**が記述されている。
+- [ ] **結合**：実行スコープは最小化され、**副作用の影響範囲**と**後始末**が定義されている。
+- [ ] **CI**：UnitTest はデフォルトで実行、Integration は**明示的に opt-in**。必要に応じてコンテナ／サンドボックス化。
+
 #### Article I (Library-First):
 - [ ] Ensure templates emphasize library creation
 - [ ] Update CLI command examples
