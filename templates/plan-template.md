@@ -16,7 +16,7 @@
    → Update Progress Tracking: Initial Constitution Check
 4. Execute Phase 0 → research.md
    → If NEEDS CLARIFICATION remain: ERROR "Resolve unknowns"
-5. Execute Phase 1 → contracts, data-model.md, quickstart.md, agent-specific template file (e.g., `CLAUDE.md` for Claude Code, `.github/copilot-instructions.md` for GitHub Copilot, or `GEMINI.md` for Gemini CLI).
+5. Execute Phase 1 → functional-design.md, integration-test.md, quickstart.md, agent-specific template file (e.g., `CLAUDE.md` for Claude Code, `.github/copilot-instructions.md` for GitHub Copilot, or `GEMINI.md` for Gemini CLI).
 6. Re-evaluate Constitution Check section
    → If new violations: Refactor design, return to Phase 1
    → Update Progress Tracking: Post-Design Constitution Check
@@ -80,7 +80,7 @@
 ### Documentation (this feature)
 ```
 specs/[###-feature]/
-├── plan.md              # This file (/plan command output)
+├── functional-design.md              # This file (/plan command output)
 ├── research.md          # Phase 0 output (/plan command)
 ├── data-model.md        # Phase 1 output (/plan command)
 ├── quickstart.md        # Phase 1 output (/plan command)
@@ -148,37 +148,74 @@ ios/ or android/
 
 **Output**: research.md with all NEEDS CLARIFICATION resolved
 
-## Phase 1: Design & Contracts
+## Phase 1: Design
 *Prerequisites: research.md complete*
 
-1. **Extract entities from feature spec** → `data-model.md`:
-   - Entity name, fields, relationships
-   - Validation rules from requirements
-   - State transitions if applicable
+### ドキュメントと章の構成
 
-2. **Generate API contracts** from functional requirements:
-   - For each user action → endpoint
-   - Use standard REST/GraphQL patterns
-   - Output OpenAPI/GraphQL schema to `/contracts/`
+ドキュメントは次のファイルへ分割する。
 
-3. **Generate contract tests** from contracts:
-   - One test file per endpoint
-   - Assert request/response schemas
-   - Tests must fail (no implementation yet)
+1. functional-design.md
+   - 外部仕様書
+2. integration-test.md
+   - 統合テスト計画
+3. quickstart.md
+   - ソフトウェアを使用するユーザー向けの、クイックスタートガイド
 
-4. **Extract test scenarios** from user stories:
+#### functional-design.md
+
+次のコメントブロックへ記載する見出しを使用して作成すること。見出し内の本文に書かれているのは、その章の記載内容の説明である。
+
+```markdown
+# 外部仕様書
+
+## 概要
+
+## 機能
+
+ソフトウェアが持つ機能の一覧と、それぞれの説明を記載する。
+
+## ユーザーインターフェース
+
+GUIもしくはCLIを含む場合、その定義を記載する。GUIの場合は画面定義・画面の動作など。CLIの場合はコマンドの定義など。
+
+GUI/CLIどちらのケースでも、ユーザーへ表示するメッセージが有る場合は、メッセージの文字列とメッセージを表示する条件を一覧表で記載すること。
+
+## ソフトウェアインターフェース
+
+外部システムとのインターフェースを定義する。APIエンドポイントやデータフォーマットなどを記載する。APIエンドポイントは、WebAPIであればOpenAPI形式、.NETクラスライブラリについてはC#のXMLドキュメントコメント形式で、ネイティブC++についてはVisual C++のXMLドキュメントコメント形式で記載すること。
+
+## 実現方式
+
+ソフトウェアの構成図、アーキテクチャや使用する技術スタックを記載する。また、機能を実現する上で方式の指定や重要なポイントがあれば記載する（Phase 0で判明した内容など）。
+
+## 保守機能
+
+ソフトウェアを保守するための機能について記載する。ログの取得方法、設定変更方法、監視ポイントなど。
+
+## 開発環境
+
+ソフトウェアをビルド・デプロイするために必要な環境を記載する。
+
+```
+
+#### integration-test.md
+
+統合テストの観点を記載する。テストコードで完結するUnitTestの記載は含めず、実際の運用環境で行なうテストの観点を記載する。
+
+1. **Extract test scenarios** from user stories:
    - Each story → integration test scenario
    - Quickstart test = story validation steps
 
-5. **Update agent file incrementally** (O(1) operation):
+### その他の処理
+
+1. **Update agent file incrementally** (O(1) operation):
    - Run `/scripts/update-agent-context.sh [claude|gemini|copilot]` for your AI assistant
    - If exists: Add only NEW tech from current plan
    - Preserve manual additions between markers
    - Update recent changes (keep last 3)
    - Keep under 150 lines for token efficiency
    - Output to repository root
-
-**Output**: data-model.md, /contracts/*, failing tests, quickstart.md, agent-specific file
 
 ## Phase 2: Task Planning Approach
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
