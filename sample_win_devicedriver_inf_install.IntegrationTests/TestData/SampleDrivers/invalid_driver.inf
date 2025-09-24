@@ -1,0 +1,14 @@
+﻿[Version]
+Signature="INVALID SIGNATURE"
+Class=
+Provider=
+DriverVer=invalid-date
+
+[DefaultInstall]
+CopyFiles=InvalidFiles
+
+[InvalidFiles]
+nonexistent.sys
+
+[DestinationDirs]
+InvalidFiles = InvalidDestination

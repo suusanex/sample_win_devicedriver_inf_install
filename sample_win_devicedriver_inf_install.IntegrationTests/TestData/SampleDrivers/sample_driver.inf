@@ -1,0 +1,48 @@
+﻿[Version]
+Signature="$WINDOWS NT$"
+Class=Sample
+ClassGUID={12345678-1234-1234-1234-123456789012}
+Provider=TestProvider
+DriverVer=01/01/2024,1.0.0.0
+CatalogFile=sample_driver.cat
+
+[DefaultInstall]
+CopyFiles=SampleDriverFiles
+AddReg=SampleDriverRegistry
+
+[DefaultInstall.Services]
+AddService = SampleDriverService,0x00000002,SampleDriverService_ServiceInstall
+
+[SampleDriverService_ServiceInstall]
+ServiceType = 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %12%\sample_driver.sys
+DisplayName = %SampleDriverService.DisplayName%
+Description = %SampleDriverService.Description%
+
+[SampleDriverFiles]
+sample_driver.sys
+sample_driver_helper.dll
+
+[SampleDriverRegistry]
+HKR,,"Version",0x00000000,"1.0.0.0"
+HKR,,"InstallDate",0x00000000,%InstallDate%
+HKR,"Parameters","EnableLogging",0x00010001,1
+HKR,"Parameters","LogLevel",0x00010001,2
+
+[DestinationDirs]
+SampleDriverFiles = 12
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+sample_driver.sys = 1
+sample_driver_helper.dll = 1
+
+[Strings]
+DiskName = "Sample Driver Installation Disk"
+SampleDriverService.DisplayName = "Sample Device Driver Service"
+SampleDriverService.Description = "Sample device driver for testing purposes"
+InstallDate = "2024-01-01"
