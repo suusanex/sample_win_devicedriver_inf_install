@@ -578,7 +578,7 @@ public class SilentFileQueueCallback
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to log rename error情報");
+            _logger.LogWarning(ex, "Failed to log rename error information");
         }
 
         // リネームエラーは通常続行可能
